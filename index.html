@@ -85,6 +85,7 @@ details.rules ul { margin: 0; padding: 0 16px 16px 34px; display: grid; gap: 6px
 .crew.me svg { filter: drop-shadow(0 0 6px var(--def)); }
 .conn { pointer-events: none; }
 body.tv .conn { top: 12px; bottom: auto; font-size: clamp(16px, 1.6vw, 30px); padding: 8px 18px; }
+body.tv:has(> #conn) .tvwrap { padding-top: 4.5em; }
 
 /* ---------- game layer (phone) ---------- */
 .game { position: fixed; inset: 0; z-index: 5; background: var(--bg); touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -278,10 +279,15 @@ const mmss = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math
 const cleanName = s => String(s || '').replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, '').replace(/\s+/g, ' ').trim().slice(0, 14);
 const say = (msg, assertive) => { const el = $(assertive ? '#alert' : '#live'); if (el) { el.textContent = ''; setTimeout(() => { el.textContent = msg; }, 30); } };
 const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} };
+// kept in memory too, so a browser that blocks site data still works for this page load
+const memStore = {};
 const store = {
-  get(k) { try { const v = localStorage.getItem('cyberdef2.' + k); return v ? JSON.parse(v) : null; } catch (e) { return null; } },
-  set(k, v) { try { localStorage.setItem('cyberdef2.' + k, JSON.stringify(v)); } catch (e) {} },
-  del(k) { try { localStorage.removeItem('cyberdef2.' + k); } catch (e) {} },
+  get(k) {
+    try { const v = localStorage.getItem('cyberdef2.' + k); if (v) return JSON.parse(v); } catch (e) {}
+    return k in memStore ? JSON.parse(memStore[k]) : null;
+  },
+  set(k, v) { memStore[k] = JSON.stringify(v); try { localStorage.setItem('cyberdef2.' + k, memStore[k]); } catch (e) {} },
+  del(k) { delete memStore[k]; try { localStorage.removeItem('cyberdef2.' + k); } catch (e) {} },
 };
 let toastTimer = 0;
 function toast(text, kind) {
@@ -393,9 +399,10 @@ const Net = {
   open: false, everOpen: false, found: false, startedAt: 0, gen: 0, timer: 0,
   out: Promise.resolve(),  // sends go out in order
   // phone
-  home: null, pin: null, pinKey: null, hostKey: null, heardAt: 0, n: 0, outbox: [], tvTab: null, tvSince: 0, privHs: null, privV: -1, helloAt: 0, resendAt: 0, skews: [],
+  home: null, pin: null, pinKey: null, hostKey: null, heardAt: 0, n: 0, outbox: [], tvTab: null, tvSince: 0, tvSeq: 0, privHs: null, privV: -1, helloAt: 0, resendAt: 0, skews: [],
+  anyUp: false, cands: new Map(), candT: 0,
   // TV
-  peers: {}, tab: rid(8), since: Date.now(), lastPub: null, lastBeatAt: 0, lastPrivAt: 0, fwd: new Map(), bc: null, upCount: 0,
+  peers: {}, tab: rid(8), since: Date.now(), seq: 0, lastPub: null, lastBeatAt: 0, lastPrivAt: 0, fwd: new Map(), bc: null, upCount: 0, asked: new Map(), cuWin: 0, cuN: 0,
 
   async startTV(code, peers) {
     this.peers = {};
@@ -430,8 +437,9 @@ const Net = {
     } else {
       // pinned to the TV this phone first met for this code (or to the fingerprint in the QR code)
       const pin = store.get('tvpin');
-      this.pin = pin && pin.code === code ? pin : null;
-      this.fp = this.pin ? this.pin.fp : (fp || null);
+      this.pin = pin && pin.code === code && (!fp || pin.fp === fp) ? pin : null;
+      this.fp = fp || (this.pin && this.pin.fp) || null;
+      this.cands = new Map(); this.candT = 0; App.clash = false;
     }
     RELAYS.forEach(url => this.link(url));
     this.timer = setInterval(() => this.watch(), 1000);
@@ -444,10 +452,10 @@ const Net = {
     const links = this.links;
     for (const L of links) L.closing = true;
     this.out.then(() => { for (const L of links) { L.dead = true; try { L.c.end(false); } catch (e) {} } });
-    this.links = []; this.home = null; this.outbox = []; this.upCount = 0;
+    this.links = []; this.home = null; this.outbox = []; this.upCount = 0; this.anyUp = false;
     this.open = false; this.found = false; this.everOpen = false; App.offline = false;
     this.code = null; this.topic = null; this.key = null; this.pin = null; this.pinKey = null; this.hostKey = null; this.fp = null;
-    this.tvTab = null; this.tvSince = 0; this.privHs = null; this.privV = -1; this.lastPub = null; this.skews = [];
+    this.tvTab = null; this.tvSince = 0; this.tvSeq = 0; this.privHs = null; this.privV = -1; this.lastPub = null; this.skews = [];
   },
   link(url) {
     let c;
@@ -461,6 +469,7 @@ const Net = {
       this.linkUp(L);
     });
     c.on('close', () => { if (L.up) { L.up = false; this.linkDown(L); } });
+    c.on('packetreceive', () => { if (!L.dead && !L.closing) L.rx = Date.now(); });
     c.on('error', () => {});
     // one relay's messages are handled one at a time, in the order they came
     c.on('message', (topic, payload) => { if (L.dead || L.closing) return; L.rx = Date.now(); L.chain = L.chain.then(() => this.onRelay(L, topic, String(payload))).catch(() => {}); });
@@ -479,7 +488,11 @@ const Net = {
     if (this.role === 'tv') {
       this.open = true; this.everOpen = true; App.offline = false;
       if (this.lastPub) this.sendPub(this.lastPub, L);
-    } else if (!this.open || L === this.home) this.hello(L);   // while connected, only on this phone's own relay
+    } else {
+      this.anyUp = true;
+      if (!this.everOpen && App.offline) { App.offline = false; render(); }
+      if (!this.open || L === this.home) this.hello(L, L === this.home);   // while connected, only on this phone's own relay
+    }
     this.countLinks();
   },
   linkDown(L) {
@@ -504,26 +517,32 @@ const Net = {
       if (t - this.lastBeatAt >= 2000 && this.lastPub) { this.lastBeatAt = t; this.sendPub(this.lastPub); }
       if (t - this.lastPrivAt >= 6000 && Host.active && Host.S) { this.lastPrivAt = t; for (const p of Host.S.players) if (!p.bot && this.peers[p.pid]) this.send({ t: 'priv', pid: p.pid, priv: Host.privateView(p.pid) }); }
       for (const [k, at] of this.fwd) if (t - at > 15000) this.fwd.delete(k);
+      for (const [k, at] of this.asked) if (t - at > 10000) this.asked.delete(k);
+      for (const L of this.upLinks()) if (L.ask && L.ask.size) {
+        const pids = [...L.ask].slice(0, 20);
+        L.ask = null;
+        this.out = this.out.then(async () => { this.publish(L, 'h', await this.signed({ t: 'hello?', pids })); }).catch(() => {});
+      }
       return;
     }
-    if (!this.everOpen && !this.upLinks().length && t - this.startedAt > 12000 && !App.offline) { App.offline = true; render(); }
+    if (!this.everOpen && !this.anyUp && t - this.startedAt > 12000 && !App.offline) { App.offline = true; render(); }
     if (App.pub && App.pub.phase === 'closed') return;   // the TV closed this game: stop looking
     if (this.open && t - this.heardAt > 8000) this.lose();
     if (!this.open) {
       // a relay that has gone silent while "connected" (e.g. after the phone slept): dial it again
       for (const L of this.links.slice()) if (L.up && t - L.rx > 9000) this.recycle(L);
     }
-    if (t - this.helloAt >= (this.open ? 10000 : 2500)) this.hello(this.open ? this.home : null);
+    if (t - this.helloAt >= (this.open ? 10000 : 2500)) this.open ? this.hello(this.home, true) : this.hello(null);
     if (this.open && this.outbox.length && t - this.resendAt >= 3000) this.resend();
   },
 
   // ---------- phone ----------
-  hello(L) {
+  hello(L, home = false) {
     if (!this.key) return;
     this.helloAt = Date.now();
     const targets = L ? [L] : this.upLinks();
     this.out = this.out.then(async () => {
-      const text = 'c:' + await Lock.seal(this.key, { t: 'hello', pk: this.mine.pub });
+      const text = 'c:' + await Lock.seal(this.key, { t: 'hello', pk: this.mine.pub, home });
       for (const x of targets) this.publish(x, 'u/' + App.pid, text, 1);
     }).catch(() => {});
   },
@@ -541,25 +560,40 @@ const Net = {
       if (!(await Lock.verify(m.hsk, sigPart, sealed))) return;
       const fp = await Lock.fingerprint(m.hpk, m.hsk);
       if (this.fp && fp !== this.fp) return;
+      if (!this.fp) {
+        // a typed code can't tell the real TV from another screen using the same code: listen for 2 s,
+        // and if two different TVs answer, ask the player to scan the QR code instead
+        const t = Date.now();
+        if (!this.cands.size) this.candT = t;
+        this.cands.set(fp, t);
+        if (this.cands.size > 1) { if (!App.clash) { App.clash = true; render(); } return; }
+        if (t - this.candT < 2000) return;
+      }
       this.pin = { code: this.code, hpk: m.hpk, hsk: m.hsk, fp };
       store.set('tvpin', this.pin);
       try { this.hostKey = await Lock.shared(this.mine.priv, m.hpk, this.topic); } catch (e) { this.pin = null; return; }
     }
     if (!this.hostKey) { try { this.hostKey = await Lock.shared(this.mine.priv, this.pin.hpk, this.topic); } catch (e) { return; } }
+    if (typeof m.tab !== 'string' || typeof m.seq !== 'number') return;
+    // two tabs of the same TV: follow the newest
+    if (this.tvTab && m.tab !== this.tvTab && !(m.t === 'pub' && m.since > this.tvSince)) return;
+    if (m.tab === this.tvTab && m.seq <= this.tvSeq) return;   // an old message played again
     if (typeof m.now === 'number') this.clock(m.now);
     if (m.t === 'pub') {
-      if (!m.pub || typeof m.tab !== 'string' || typeof m.since !== 'number') return;
-      // two tabs of the same TV: follow the newest
-      if (this.tvTab && m.tab !== this.tvTab && m.since < this.tvSince) return;
+      if (!m.pub || typeof m.since !== 'number') return;
       const newTab = m.tab !== this.tvTab;
-      this.tvTab = m.tab; this.tvSince = m.since;
+      this.tvTab = m.tab; this.tvSince = m.since; this.tvSeq = m.seq;
       const wasHome = this.home;
       this.heard(L);
       if (newTab && wasHome) this.hello(this.home);   // a reloaded TV relearns where this phone is
       onMessage({ t: 'pub', pub: m.pub });
+    } else if (m.tab !== this.tvTab) {
+      return;
     } else if (m.t === 'hello?') {
-      if (Array.isArray(m.pids) && m.pids.includes(App.pid)) this.hello(this.home && this.home.up ? this.home : L);
+      this.tvSeq = m.seq;
+      if (Array.isArray(m.pids) && m.pids.includes(App.pid)) this.hello(this.home && this.home.up ? this.home : L, !!this.home);
     } else if (L === this.home) {
+      this.tvSeq = m.seq;
       if (m.t === 'bots' && m.bots && typeof m.bots === 'object') onMessage({ t: 'bots', bots: m.bots });
       else if (m.t === 'live' && m.live && typeof m.live === 'object') for (const [pid, p] of Object.entries(m.live)) if (pid !== App.pid && validPid(pid)) onMessage({ t: 'pos', pid, p });
     }
@@ -570,15 +604,16 @@ const Net = {
   },
   // the TV's clock: the newest of the last few readings (the one that spent least time in transit)
   clock(tvNow) {
-    this.skews.push(tvNow - Date.now());
-    if (this.skews.length > 8) this.skews.shift();
-    App.skew = Math.max(...this.skews);
+    const t = Date.now();
+    this.skews = this.skews.filter(x => t - x[0] < 15000);
+    this.skews.push([t, tvNow - t]);
+    App.skew = Math.max(...this.skews.map(x => x[1]));
   },
   heard(L) {
     this.heardAt = Date.now();
     if (!this.home || !this.home.up) {
       this.home = L;
-      this.hello(L);   // tell the TV which relay this phone is on now
+      this.hello(L, true);   // tell the TV which relay this phone is on now
       this.resend();
       // stay on the relay that answered first; let the others go
       const gen = this.gen;
@@ -586,6 +621,7 @@ const Net = {
         if (gen !== this.gen || !this.home || !this.open) return;
         for (const x of this.links) if (x !== this.home) { x.dead = true; x.closing = true; try { x.c.end(true); } catch (e) {} }
         this.links = [this.home];
+        this.hello(this.home, true);   // in case a slower relay delivered an older hello after the first
       }, 3000);
     }
     if (!this.open) { this.open = true; this.found = true; this.everOpen = true; App.offline = false; onConnected(); }
@@ -610,7 +646,7 @@ const Net = {
   },
   // seal with the game-code key and sign, for 'h'
   async signed(obj) {
-    const sealed = await Lock.seal(this.key, { ...obj, now: Date.now() });
+    const sealed = await Lock.seal(this.key, { ...obj, tab: this.tab, seq: ++this.seq, now: Date.now() });
     return (await Lock.sign(this.sig.priv, sealed)) + '.' + sealed;
   },
   sendPub(pub, only) {
@@ -618,7 +654,7 @@ const Net = {
     if (!this.key) return;
     const targets = only ? [only] : this.upLinks();
     this.out = this.out.then(async () => {
-      const text = await this.signed({ t: 'pub', pub, hpk: this.mine.pub, hsk: this.sig.pub, tab: this.tab, since: this.since });
+      const text = await this.signed({ t: 'pub', pub, hpk: this.mine.pub, hsk: this.sig.pub, since: this.since });
       for (const L of targets) this.publish(L, 'h', text);
     }).catch(() => {});
   },
@@ -647,11 +683,15 @@ const Net = {
         const waiting = Object.entries(this.peers).filter(([id]) => !(Host.S && Host.S.players.some(p => p.pid === id)));
         if (waiting.length >= 30) { waiting.sort((a, b) => (a[1].seen || 0) - (b[1].seen || 0)); delete this.peers[waiting[0][0]]; }
         peer = this.peers[pid] = { pub: m.pk, n: 0 };
-        if (!(await this.keyFor(pid))) { delete this.peers[pid]; return; }
       }
-      peer.link = L; peer.seen = t;
-      // catch the phone up (at most every 3 s): the game, its own role and tasks, where everyone is
+      // a hello from the phone's own relay says where it is; one sent while searching only if we don't know yet
+      if (m.home || !peer.link || !peer.link.up) peer.link = L;
+      peer.seen = t;
+      // catch the phone up (at most every 3 s, and at most 5 a second for phones not in the game):
+      // the game, its own role and tasks, where everyone is
       if (t - (peer.caughtUp || 0) < 3000) return;
+      const inGame = Host.S && Host.S.players.some(p => p.pid === pid);
+      if (!inGame) { if (t - this.cuWin >= 1000) { this.cuWin = t; this.cuN = 0; } if (++this.cuN > 5) return; }
       peer.caughtUp = t;
       if (this.lastPub) this.sendPub(this.lastPub, L);
       if (Host.active && Host.S && Host.S.players.some(p => p.pid === pid)) this.send({ t: 'priv', pid, priv: Host.privateView(pid) });
@@ -680,10 +720,9 @@ const Net = {
   },
   askHello(L, pid) {
     const t = Date.now();
-    this.asked = this.asked || {};
-    if (t - (this.asked[pid] || 0) < 3000) return;
-    this.asked[pid] = t;
-    this.out = this.out.then(async () => { this.publish(L, 'h', await this.signed({ t: 'hello?', pids: [pid] })); }).catch(() => {});
+    if (this.asked.size > 500 || t - (this.asked.get(pid) || 0) < 3000) return;
+    this.asked.set(pid, t);
+    (L.ask = L.ask || new Set()).add(pid);
   },
 
   // ---------- both ----------
@@ -1446,7 +1485,7 @@ const Player = {
     if (!pub) return;
     if (!prev || prev.gid !== pub.gid || prev.hs !== pub.hs) { App.priv = null; App.ui.revealed = false; App.ui.voteSel = null; }
     // the host removed this phone from the lobby
-    if (prev && prev.gid === pub.gid && pub.phase === 'lobby' && prev.players.some(p => p.pid === App.pid) && !me() && !this.leaving) { App.removed = true; store.del('joined'); }
+    if (prev && prev.gid === pub.gid && pub.phase === 'lobby' && prev.players.some(p => p.pid === App.pid) && !me() && !this.leaving) { App.removed = true; App.removedAt = Date.now(); store.del('joined'); }
     // rejoin by itself when the TV opens a new lobby
     if (pub.phase === 'lobby' && !me() && Net.code && store.get('joined') === Net.code && App.name && this.autoJoined !== pub.gid) {
       this.autoJoined = pub.gid;
@@ -1531,10 +1570,11 @@ async function boot() {
     // not a game this laptop is hosting (e.g. the TV's address was shared): join it as a player instead
     q.delete('tv');
     history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + '#' + tv);
+    App.tvLink = true;
   }
   const link = hashLink();
   if (link) {
-    App.codeHint = link.code; App.fpHint = link.fp; App.fromLink = true;
+    App.codeHint = link.code; App.fpHint = link.fp; App.fromLink = !App.tvLink;
     // a reload in the middle of a game picks up where it was
     if (store.get('joined') === link.code && App.name) { findGame(link.code, link.fp); return; }
   }
@@ -1581,7 +1621,8 @@ function findGame(code, fp) {
 }
 function leaveGame() {
   if (me() && App.pub && App.pub.phase === 'lobby') Player.leave();
-  store.del('joined');
+  store.del('joined'); store.del('tvpin');
+  App.clash = false;
   App.draftCode = Net.code || App.draftCode || '';   // keep the code to fix a typo
   App.codeHint = null; App.fromLink = false;
   App.pub = null; App.priv = null; App.live = {}; App.bots = null;
@@ -1600,7 +1641,9 @@ function backToStart() {
 }
 // a pasted "Code: BCD-FGH" becomes BCDFGH
 function codeFromText(text) {
-  const letters = String(text || '').toUpperCase().replace(/[^A-Z]/g, '');
+  text = String(text || '');
+  if (text.includes('#')) text = text.split('#').pop().split('.')[0];   // a whole join link was pasted
+  const letters = text.toUpperCase().replace(/[^A-Z]/g, '');
   const run = letters.length > 6 && letters.match(/[BCDFGHJKLMNPQRSTVWXZ]{6}/);
   return run ? run[0] : letters.slice(0, 6);
 }
@@ -1964,7 +2007,7 @@ function renderOffline() {
 function renderLanding() {
   const okHint = 'The 6 letters on the TV. No account needed.';
   const hint = h('p', { id: 'code-hint', class: App.codeError ? 'field-err' : 'muted', style: 'font-size:15px' }, App.codeError || okHint);
-  const code = h('input', { type: 'text', id: 'code', 'data-k': 'code', class: 'code-in', maxlength: '40', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', enterkeyhint: 'next',
+  const code = h('input', { type: 'text', id: 'code', 'data-k': 'code', class: 'code-in', maxlength: '300', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', enterkeyhint: 'next',
     'aria-describedby': 'code-hint', 'aria-invalid': App.codeError ? 'true' : null,
     value: App.draftCode != null ? App.draftCode : (App.codeHint || ''),
     oninput: e => {
@@ -1977,10 +2020,11 @@ function renderLanding() {
   return h('main', { class: 'screen' },
     h('p', { class: 'brand' }, 'Cyber Defenders'),
     h('h1', { class: 'title' }, 'There’s a hacker among us.'),
+    App.tvLink ? h('p', { class: 'card', role: 'status' }, 'That was a TV address. To play, type your name below. To run a new game on this screen, press Host a game.') : null,
     h('form', { class: 'card', onsubmit: e => {
       e.preventDefault();
       const c = cleanCode(code.value), n = cleanName(name.value);
-      if (!validCode(c)) { App.codeError = codeProblem(c); App.draftCode = c; render(); const el = $('#code'); if (el) el.focus(); return; }
+      if (!validCode(c)) { App.codeError = codeProblem(c); App.draftCode = c; render(); const el = $('#code'); if (el) { el.focus(); el.setSelectionRange(c.length, c.length); } return; }
       if (!n) { name.focus(); toast('Type your name.'); return; }
       joinGame(c, n);
     } },
@@ -2008,7 +2052,7 @@ function renderMenus() {
     wrap.append(h('h1', { class: 'title' }, moved ? 'This game moved to another tab' : 'Game closed'),
       h('div', { class: 'card' },
         h('p', null, moved ? 'The game is now running in another tab or window on this laptop: use that one. Or host a new game here (it gets a new code).' : 'Host a new game when you’re ready to play again. It gets a new code.'),
-        h('button', { class: 'btn primary', 'data-k': 'newlobby', onclick: () => hostGame() }, 'Host a new game'),
+        h('button', { class: moved ? 'btn ghost' : 'btn primary', 'data-k': 'newlobby', onclick: () => hostGame() }, 'Host a new game'),
         h('button', { class: 'btn ghost', 'data-k': 'tostart', onclick: backToStart }, 'Back to the start page')));
     return wrap;
   }
@@ -2017,9 +2061,10 @@ function renderMenus() {
   const codeChip = h('span', { class: 'code-chip' }, Net.code);
   const change = h('button', { class: 'btn ghost', 'data-k': 'change', onclick: leaveGame }, 'Change code');
   if (!Net.found) {
-    const slow = Date.now() - Net.startedAt > 10000, reach = Net.upLinks().length > 0;
+    const slow = Date.now() - Net.startedAt > 10000, reach = Net.anyUp;
     wrap.append(h('h1', { class: 'title' }, 'Game ', codeChip),
       h('div', { class: 'card', role: 'status' },
+        App.clash ? h('p', { class: 'warn' }, `Two screens answered for code ${Net.code}. Scan the QR code on the TV to join the right one.`) : null,
         h('p', null, !slow ? 'Finding the game…' : reach ? `No TV has answered for code ${Net.code} yet.` : 'Still trying to reach the game network…'),
         slow ? h('p', { class: 'muted' }, reach
           ? 'Check the code on the TV, and that the game is still open there. On office Wi-Fi? Try mobile data: the TV may be on a network this phone can’t reach. This page keeps looking by itself.'
@@ -2049,7 +2094,7 @@ function renderMenus() {
     } else {
       // keep what was typed: the form is redrawn whenever someone else joins
       const input = h('input', { type: 'text', id: 'name', 'data-k': 'name', maxlength: '14', autocomplete: 'nickname', value: App.draftName != null ? App.draftName : (App.name || ''), oninput: e => { App.draftName = e.target.value; } });
-      add(lostTV, h('form', { class: 'card', onsubmit: e => { e.preventDefault(); const v = cleanName(input.value); if (!v) { input.focus(); toast('Type a name first.'); return; } Player.autoJoined = pub.gid; App.removed = false; Player.join(v); } },
+      add(lostTV, h('form', { class: 'card', onsubmit: e => { e.preventDefault(); const v = cleanName(input.value); if (!v) { input.focus(); toast('Type a name first.'); return; } if (App.removed && Date.now() - App.removedAt < 21000) { toast(`You can join again in ${Math.ceil((21000 - (Date.now() - App.removedAt)) / 1000)} s.`); return; } Player.autoJoined = pub.gid; App.removed = false; Player.join(v); } },
         h('h1', { class: 'title', style: 'font-size:34px' }, 'Join the crew'),
         App.removed ? h('p', { class: 'warn', role: 'status' }, 'The host removed you from this game. Join again only if they say so.') : null,
         h('p', null, 'Game ', codeChip),
@@ -2202,7 +2247,7 @@ function renderTVLobby(pub, S) {
         sel('vote', [30, 60, 90, 120], 'Voting time', ' s'),
         sel('tasks', [3, 4, 5, 6], 'Tasks per player', ''),
         sel('meetings', [1, 2, 3], 'Emergency meetings each', '')),
-      h('div', { class: 'row' },
+      h('div', { class: 'row', style: 'position:sticky;bottom:0;background:var(--bg);padding-block:8px;z-index:1' },
         h('button', { class: 'btn', 'data-k': 'addbot', disabled: n >= MAX_PLAYERS, onclick: () => Host.addBot() }, 'Add practice bot'),
         h('button', { class: 'btn primary', 'data-k': 'start', disabled: n < MIN_PLAYERS, onclick: () => Host.start() }, n < MIN_PLAYERS ? `Need ${MIN_PLAYERS - n} more` : 'Start game')),
       h('p', { class: 'muted' }, '1 Hacker is chosen at random. Bots fill empty seats for practice.')));
