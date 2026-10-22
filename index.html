@@ -1,0 +1,2509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#05070d">
+<title>Cyber Defenders</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;700&family=Atkinson+Hyperlegible+Next:wght@400;600;800&display=swap" media="print" onload="this.media='all'">
+<style>
+/* Layout: an Among Us-style ship. Phones are the game (map, joystick, action buttons); the TV laptop
+   runs the game, shows the game code, five security cameras and the full-screen meetings. */
+:root {
+  --bg: #05070d;
+  --panel: #0f1e31;
+  --panel-2: #142840;
+  --line: #2d4961;
+  --fg: #f0f6ff;
+  --muted: #a3b8ce;
+  --def: #54e5ed;
+  --hack: #ff4d61;
+  --ok: #43d16a;
+  --warn: #ffcf5c;
+  --focus: #ffd75e;
+  --ink: #0b0f16;
+  --font: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --mono: "Atkinson Hyperlegible Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.45 var(--font);
+  padding-block: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-tap-highlight-color: transparent;
+}
+body.ingame { overflow: hidden; overscroll-behavior: none; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.def { color: var(--def); } .hack { color: var(--hack); } .ok { color: var(--ok); } .warn { color: var(--warn); }
+
+/* ---------- menus (landing, join, lobby) ---------- */
+.screen { max-width: 520px; margin: 0 auto; padding-block: 20px 48px; display: grid; gap: 14px; }
+.brand { font-family: var(--mono); font-weight: 700; letter-spacing: .06em; font-size: 14px; color: var(--muted); }
+.title { font-size: 44px; font-weight: 800; letter-spacing: .01em; line-height: 1; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.card h2 { font-size: 20px; }
+.label { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 52px; padding: 12px 18px;
+  border-radius: 14px; border: 3px solid var(--ink); background: #e8eef6; color: var(--ink); font-weight: 800; cursor: pointer; box-shadow: 0 4px 0 var(--ink); touch-action: manipulation; }
+.btn:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--ink); }
+.btn.primary { background: var(--def); }
+.btn.red { background: var(--hack); color: #fff; }
+.btn.ghost { background: transparent; color: var(--fg); border-color: var(--line); box-shadow: none; }
+.btn.small { min-height: 40px; padding: 6px 12px; font-size: 15px; width: auto; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; } .row > .btn { flex: 1 1 140px; }
+input[type="text"] { width: 100%; min-height: 52px; padding: 10px 14px; border-radius: 12px; border: 2px solid var(--line); background: #0b1828; font-size: 20px; }
+.crew-row { display: flex; flex-wrap: wrap; gap: 12px 14px; justify-content: center; }
+.crew { display: grid; justify-items: center; gap: 4px; width: 78px; text-align: center; font-weight: 700; font-size: 14px; }
+.crew svg { width: 54px; height: auto; }
+.crew span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+details.rules { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+details.rules summary { cursor: pointer; padding: 14px 16px; font-weight: 700; }
+details.rules ul { margin: 0; padding: 0 16px 16px 34px; display: grid; gap: 6px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); top: calc(70px + env(safe-area-inset-top, 0px)); z-index: 60;
+  max-width: min(440px, calc(100% - 32px)); background: #eef6ff; color: #081321; border-radius: 12px; padding: 10px 16px; font-weight: 700; box-shadow: 0 8px 30px #0008; text-align: center; }
+.toast.bad { background: #ffd2d8; }
+.conn { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 70; background: var(--warn); color: #2b1d00; padding: 6px 14px; border-radius: 10px; font-weight: 800; }
+.join-url { font-family: var(--mono); font-weight: 700; font-size: clamp(18px, 2vw, 36px); color: var(--fg); overflow-wrap: anywhere; }
+.code-in { font-family: var(--mono); font-weight: 700; font-size: 30px; letter-spacing: .3em; text-transform: uppercase; text-align: center; }
+.code-row { display: flex; gap: 2.4vw; align-items: center; flex-wrap: wrap; }
+.code-big { font-family: var(--mono); font-weight: 700; font-size: clamp(40px, 4.8vw, 120px); letter-spacing: .14em; line-height: 1; color: var(--def); }
+.code-chip { font-family: var(--mono); font-weight: 700; letter-spacing: .12em; color: var(--def); }
+.field-err { color: var(--warn); font-weight: 700; }
+.crew .you { color: var(--def); font-size: 12px; font-weight: 800; }
+.crew.me svg { filter: drop-shadow(0 0 6px var(--def)); }
+.conn { pointer-events: none; }
+body.tv .conn { top: 12px; bottom: auto; font-size: clamp(16px, 1.6vw, 30px); padding: 8px 18px; }
+
+/* ---------- game layer (phone) ---------- */
+.game { position: fixed; inset: 0; z-index: 5; background: var(--bg); touch-action: none; user-select: none; -webkit-user-select: none; }
+.game canvas.world { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.hud-top { position: absolute; top: calc(8px + env(safe-area-inset-top, 0px)); left: calc(8px + env(safe-area-inset-left, 0px)); right: calc(8px + env(safe-area-inset-right, 0px));
+  display: flex; gap: 8px; align-items: flex-start; pointer-events: none; }
+.hud-top > * { pointer-events: auto; }
+.taskbar { flex: 1 1 auto; max-width: 380px; background: rgba(8, 19, 33, .82); border: 2px solid #1d2f44; border-radius: 10px; padding: 5px 10px 7px; }
+.taskbar .lbl { font-family: var(--mono); font-size: 11px; color: #cfe3f7; display: flex; justify-content: space-between; }
+.bar { height: 12px; border-radius: 6px; background: #12301f; overflow: hidden; border: 1px solid #0b0f16; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .5s; }
+.hud-btn { min-width: 48px; min-height: 48px; border-radius: 12px; border: 2px solid #0b0f16; background: rgba(232, 238, 246, .92); color: var(--ink); font-weight: 900; font-size: 13px; cursor: pointer; padding: 4px 10px; }
+.tasks { position: absolute; left: calc(8px + env(safe-area-inset-left, 0px)); top: calc(66px + env(safe-area-inset-top, 0px)); max-width: min(270px, 60vw);
+  background: rgba(8, 19, 33, .78); border-radius: 10px; border: 2px solid #1d2f44; font-size: 13px; }
+.tasks summary { cursor: pointer; padding: 6px 10px; font-weight: 800; list-style: none; }
+.tasks summary::-webkit-details-marker { display: none; }
+.tasks ul { list-style: none; margin: 0; padding: 0 10px 8px; display: grid; gap: 3px; }
+.tasks li.done { color: var(--ok); }
+.tasks li.done::before { content: "\2713  "; }
+.tasks .fake { color: var(--hack); font-weight: 800; }
+.banner { position: absolute; left: 50%; transform: translateX(-50%); top: calc(66px + env(safe-area-inset-top, 0px)); z-index: 2; max-width: calc(100% - 24px);
+  padding: 8px 14px; border-radius: 10px; font-weight: 900; text-align: center; pointer-events: none; }
+.banner.crit { background: #b3122e; color: #fff; animation: flash 1s steps(2) infinite; }
+.banner.lights { background: #3a2a05; color: var(--warn); border: 2px solid var(--warn); }
+.banner.ghost { background: rgba(8, 19, 33, .85); color: #cfe3f7; border: 2px solid #2d4961; top: auto; bottom: calc(190px + env(safe-area-inset-bottom, 0px)); }
+@keyframes flash { 50% { background: #5a0715; } }
+.joy { position: absolute; left: calc(16px + env(safe-area-inset-left, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: 150px; height: 150px;
+  border-radius: 50%; background: rgba(255, 255, 255, .06); border: 2px solid rgba(255, 255, 255, .18); touch-action: none; }
+.joy i { position: absolute; left: 50%; top: 50%; width: 62px; height: 62px; margin: -31px 0 0 -31px; border-radius: 50%; background: rgba(255, 255, 255, .32); border: 2px solid rgba(255, 255, 255, .5); }
+.actions { position: absolute; right: calc(12px + env(safe-area-inset-right, 0px)); bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  display: grid; grid-template-columns: repeat(2, 84px); gap: 10px; }
+.act { position: relative; width: 84px; height: 84px; border-radius: 22px; border: 3px solid var(--ink); background: #e8eef6; color: var(--ink);
+  font-weight: 900; font-size: 13px; line-height: 1.1; cursor: pointer; box-shadow: 0 4px 0 var(--ink); display: grid; place-items: center; padding: 4px; touch-action: manipulation; }
+.act:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--ink); }
+.act[disabled] { opacity: .32; cursor: default; }
+.act .ico { font-size: 26px; line-height: 1; display: block; }
+.act.use { background: #e8eef6; } .act.report { background: var(--warn); } .act.kill { background: var(--hack); color: #fff; }
+.act.sab { background: #ff9f6b; } .act.vent { background: #c792ff; }
+.act .cd { position: absolute; inset: 0; display: grid; place-items: center; font-size: 38px; font-weight: 900; color: #fff; text-shadow: 0 2px 0 #000, 0 0 6px #000; border-radius: 20px; background: rgba(0, 0, 0, .35); }
+.minimap { position: absolute; inset: 0; z-index: 3; background: rgba(3, 6, 12, .9); display: grid; place-items: center; padding: calc(60px + env(safe-area-inset-top, 0px)) 12px calc(20px + env(safe-area-inset-bottom, 0px)); }
+.minimap canvas { width: 100%; height: 100%; max-width: 1100px; }
+.sabmenu { position: absolute; right: calc(12px + env(safe-area-inset-right, 0px)); bottom: calc(200px + env(safe-area-inset-bottom, 0px)); z-index: 4;
+  display: grid; gap: 8px; background: rgba(8, 19, 33, .95); border: 2px solid var(--hack); border-radius: 14px; padding: 10px; width: 230px; }
+
+/* overlays: role reveal, meeting, results, end */
+.overlay { position: fixed; inset: 0; z-index: 20; overflow: auto; background: radial-gradient(circle at 50% 30%, #13233a, #04060b 70%);
+  padding: calc(16px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.overlay .inner { max-width: 720px; margin: 0 auto; display: grid; gap: 16px; justify-items: center; text-align: center; }
+.overlay .big { font-size: clamp(36px, 11vmin, 88px); font-weight: 800; letter-spacing: .02em; line-height: 1; }
+.overlay .sub { font-size: clamp(18px, 4.5vw, 26px); }
+.shh { font-size: clamp(44px, 14vmin, 110px); font-weight: 800; font-style: italic; }
+.meeting { width: 100%; background: #b9c8da; color: var(--ink); border: 4px solid var(--ink); border-radius: 20px; padding: 14px; display: grid; gap: 12px; text-align: left; }
+.meeting h2 { font-size: 24px; text-align: center; }
+.meeting .why { text-align: center; font-weight: 700; }
+.meeting .btn.ghost { color: var(--ink); border-color: var(--ink); }
+.voters { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 8px; }
+.voter { display: flex; align-items: center; gap: 10px; min-height: 58px; padding: 6px 10px; border-radius: 12px; background: #e8eef6; border: 3px solid var(--ink); font-weight: 800; color: var(--ink); text-align: left; width: 100%; cursor: pointer; }
+.voter svg { width: 34px; flex: none; }
+.voter .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.voter .stamp { margin-left: auto; font-size: 11px; font-weight: 900; background: var(--hack); color: #fff; padding: 2px 6px; border-radius: 6px; transform: rotate(-6deg); }
+.voter.out { background: #8d9aab; text-decoration: line-through; cursor: default; }
+.voter[aria-pressed="true"] { outline: 4px solid #0b5cff; outline-offset: 0; }
+.voter.me { box-shadow: inset 0 0 0 2px #0b5cff; }
+.timer { font-family: var(--mono); font-weight: 700; text-align: center; }
+.lineup { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.lineup svg { width: 64px; }
+
+/* ---------- mini-game sheets ---------- */
+.sheet-wrap { position: fixed; inset: 0; z-index: 30; background: #020810e6; display: grid; align-items: center; justify-items: center;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
+.sheet { width: 100%; max-width: 480px; max-height: 100%; overflow: auto; background: var(--panel); border: 2px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 12px; }
+.sheet-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.sheet-head h2 { font-size: 22px; }
+.game-area { position: relative; border-radius: 14px; background: #06101c; border: 1px solid var(--line); padding: 14px; min-height: 240px; touch-action: manipulation; }
+.wires { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 48%; position: relative; }
+.wires svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.node { min-height: 52px; border-radius: 10px; border: 3px solid currentColor; background: #0b1828; font-weight: 800; font-size: 22px; cursor: pointer; display: grid; place-items: center; }
+.node.sel { background: currentColor; } .node.sel span { color: var(--ink); } .node.done { opacity: .55; cursor: default; }
+.breakers { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.breaker { min-height: 110px; border-radius: 10px; border: 2px solid var(--line); background: #0b1828; cursor: pointer; display: grid; align-content: space-between; justify-items: center; padding: 8px 4px; font-family: var(--mono); font-size: 13px; }
+.breaker i { width: 70%; height: 42px; border-radius: 8px; background: #3a1b22; border: 2px solid var(--hack); display: block; }
+.breaker[aria-pressed="true"] i { background: var(--ok); border-color: var(--ok); }
+.clean { position: relative; height: 280px; overflow: hidden; }
+.bug { position: absolute; width: 56px; height: 56px; border-radius: 50%; border: none; background: radial-gradient(circle at 40% 35%, #c9a27a, #7a4a22 60%, #3d230f); cursor: pointer; color: #fff; font-weight: 800; }
+canvas.wave { width: 100%; height: 160px; display: block; border-radius: 10px; background: #06101c; }
+input[type="range"] { width: 100%; height: 44px; accent-color: var(--ok); }
+.progress-big { height: 26px; border-radius: 99px; background: #172f47; overflow: hidden; }
+.progress-big > i { display: block; height: 100%; width: 0; background: var(--def); }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.key { aspect-ratio: 1; border-radius: 12px; border: 2px solid var(--line); background: #0b1828; font-family: var(--mono); font-size: 20px; cursor: pointer; }
+.key.lit { background: var(--def); color: var(--ink); border-color: var(--def); }
+.key.ok { background: var(--ok); color: var(--ink); }
+.shake { animation: shake .3s; }
+@keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+/* ---------- TV ---------- */
+body.tv { overflow: hidden; }
+.tvwrap { height: 100vh; display: grid; grid-template-rows: auto 1fr auto; gap: 1.4vh; padding-block: max(1.4vh, env(safe-area-inset-top, 0px)) max(1.4vh, env(safe-area-inset-bottom, 0px)); }
+.tvbar { display: flex; align-items: center; gap: 12px; }
+.tvbar .spacer { flex: 1; }
+.tvgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 1.2vh 1vw; min-height: 0; }
+.cam { position: relative; border: 3px solid #1d2f44; border-radius: 14px; overflow: hidden; background: #000; min-height: 0; }
+.cam canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cam .tag { position: absolute; left: 10px; top: 8px; font-family: var(--mono); font-weight: 700; font-size: clamp(12px, 1.1vw, 20px); background: rgba(0, 0, 0, .6); padding: 2px 8px; border-radius: 6px; }
+.cam .rec { position: absolute; right: 10px; top: 10px; width: 12px; height: 12px; border-radius: 50%; background: #ff2e45; animation: flash 1.2s steps(2) infinite; }
+.status { background: linear-gradient(180deg, #0b2533, var(--panel)); border: 3px solid var(--def); border-radius: 14px; padding: 1.6vh 1.2vw; display: grid; align-content: space-between; gap: 1vh; min-height: 0; }
+.status h3 { font-size: clamp(16px, 1.7vw, 32px); color: var(--def); }
+.status .stat-big { font-size: clamp(36px, 5vw, 96px); font-weight: 800; line-height: 1; color: var(--ok); }
+.status .bar { height: clamp(12px, 1.6vh, 22px); }
+.status p { font-size: clamp(14px, 1.3vw, 24px); }
+.takeover { position: fixed; inset: 0; z-index: 25; display: grid; place-items: center; text-align: center; padding: 3vh 3vw; background: radial-gradient(circle at 50% 35%, #13233a, #04060b 70%); overflow: auto; }
+.takeover .inner { display: grid; gap: 2.2vh; justify-items: center; width: min(1500px, 100%); }
+.takeover .big { font-size: clamp(48px, 8vw, 170px); font-weight: 800; line-height: 1; }
+.takeover .sub { font-size: clamp(20px, 2.4vw, 46px); }
+.takeover .note { font-size: clamp(16px, 1.5vw, 28px); color: var(--muted); }
+.takeover.alarm { background: radial-gradient(circle at 50% 40%, #7a1424, #2a0610 60%, #12040a); }
+.takeover .meeting { max-width: 1300px; }
+.takeover .meeting h2 { font-size: clamp(24px, 2.6vw, 52px); }
+.takeover .meeting .why, .takeover .meeting .timer { font-size: clamp(16px, 1.7vw, 32px); }
+.takeover .voters { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.takeover .voter { font-size: clamp(16px, 1.5vw, 28px); min-height: 7vh; }
+.takeover .voter svg { width: clamp(30px, 2.6vw, 52px); }
+.takeover .lineup svg { width: clamp(60px, 7vw, 130px); }
+.lobby { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 3vw; align-items: start; min-height: 0; overflow: auto; }
+.lobby h1 { font-size: clamp(40px, 6vw, 110px); font-weight: 800; line-height: 1; }
+.qr { background: #fff; padding: 14px; border-radius: 16px; width: min(28vw, 44vh); }
+.qr img { width: 100%; height: auto; display: block; image-rendering: pixelated; }
+.lobby .crew { width: 110px; font-size: clamp(14px, 1.2vw, 20px); }
+.lobby .crew svg { width: 70px; }
+.settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.settings label { display: grid; gap: 4px; font-size: 14px; color: var(--muted); }
+.settings select { min-height: 44px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); padding: 6px 10px; }
+.foot { color: var(--muted); font-size: clamp(12px, 1vw, 18px); }
+.lobby h1 { font-size: clamp(34px, 4.4vw, 84px); }
+.code-row .qr { width: min(15vw, 30vh); flex: none; padding: 10px; }
+.lobby .join-url { font-size: clamp(16px, 1.6vw, 30px); }
+@media (max-width: 760px) {
+  .code-row .qr { width: min(60vw, 280px); }
+  body.tv { overflow: auto; }
+  .tvwrap { height: auto; min-height: 100vh; }
+  .lobby { grid-template-columns: 1fr; }
+  .qr { width: min(70vw, 320px); }
+  .tvgrid { grid-template-columns: 1fr 1fr; grid-template-rows: none; grid-auto-rows: 34vh; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .banner.crit, .cam .rec { animation: none; }
+  .bar > i { transition: none; }
+}
+</style>
+</head>
+<body>
+<div id="app"><p class="muted" style="padding:24px 0">Loading Cyber Defenders…</p></div>
+<div id="live" class="sr" aria-live="polite"></div>
+<div id="alert" class="sr" role="alert"></div>
+
+<script src="qrcode.js"></script>
+<script src="mqtt.min.js"></script>
+<script>
+'use strict';
+// The TV laptop presses "Host a game on this screen" (its address then ends in ?tv=CODE);
+// phones open the address in the QR code (it ends in #CODE) or type the code.
+let IS_TV = false;
+const CANVAS_FONT = '"Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", Arial, sans-serif';
+
+/* =========================================================================
+   Helpers
+   ========================================================================= */
+const $ = (s, r = document) => r.querySelector(s);
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  if (props) for (const [k, v] of Object.entries(props)) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'text') el.textContent = v;
+    else if (k === 'style') el.style.cssText = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat(Infinity)) {
+    if (kid == null || kid === false) continue;
+    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const rid = (n = 12) => { const a = new Uint8Array(n); crypto.getRandomValues(a); return Array.from(a, b => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join(''); };
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const mmss = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const cleanName = s => String(s || '').replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, '').replace(/\s+/g, ' ').trim().slice(0, 14);
+const say = (msg, assertive) => { const el = $(assertive ? '#alert' : '#live'); if (el) { el.textContent = ''; setTimeout(() => { el.textContent = msg; }, 30); } };
+const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} };
+const store = {
+  get(k) { try { const v = localStorage.getItem('cyberdef2.' + k); return v ? JSON.parse(v) : null; } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem('cyberdef2.' + k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem('cyberdef2.' + k); } catch (e) {} },
+};
+let toastTimer = 0;
+function toast(text, kind) {
+  let el = $('#toast');
+  if (!el) { el = h('div', { id: 'toast', class: 'toast', role: 'status' }); document.body.append(el); }
+  el.className = 'toast' + (kind === 'bad' ? ' bad' : '');
+  el.textContent = text; el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, 3800);
+}
+// Among Us-style colours, by seat.
+const COLORS = ['#c51111', '#132ed1', '#117f2d', '#ed54ba', '#ef7d0d', '#f5f557', '#3f474e', '#d6e0f0', '#6b2fbb', '#38fedc'];
+const colorOf = p => COLORS[((p && p.seat) || 0) % COLORS.length];
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16);
+  const c = [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.round(clamp(f < 0 ? v * (1 + f) : v + (255 - v) * f, 0, 255)));
+  return '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+/* =========================================================================
+   Network: the TV and the phones meet on free public relays (MQTT over a
+   secure WebSocket), so nobody needs an account or the same Wi-Fi. The
+   6-letter game code picks hidden topics and the key that locks everything
+   sent. Each phone also agrees a key of its own with the TV, so a player's
+   role, tasks and moves can only be read by the TV and that one phone, and
+   the TV signs what it sends, so nobody else can speak for it.
+   ========================================================================= */
+const RELAYS = (() => {
+  const own = new URLSearchParams(location.search).get('relay');
+  if (own) return own.split(',').map(s => s.trim()).filter(Boolean);
+  return ['wss://broker.emqx.io:8084/mqtt', 'wss://mqtt.eclipseprojects.io/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];
+})();
+const CODE_ABC = 'BCDFGHJKLMNPQRSTVWXZ';
+const cleanCode = s => String(s || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 6);
+const validCode = s => typeof s === 'string' && s.length === 6 && [...s].every(c => CODE_ABC.includes(c));
+const newCode = () => { let s = ''; while (s.length < 6) { const b = crypto.getRandomValues(new Uint8Array(1))[0]; if (b < 240) s += CODE_ABC[b % 20]; } return s; };
+const validPid = s => typeof s === 'string' && /^[a-z0-9]{6,16}$/.test(s);
+// The address phones open: this page, with the code (and the TV's key fingerprint) after the #.
+function joinUrlFor(code, fp) {
+  const relay = new URLSearchParams(location.search).get('relay');
+  return location.origin + location.pathname + (relay ? '?relay=' + encodeURIComponent(relay) : '') + '#' + code + (fp ? '.' + fp : '');
+}
+
+const TE = new TextEncoder(), TD = new TextDecoder();
+const join8 = (...parts) => { const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0)); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; } return out; };
+const toB64 = u => { let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+const fromB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const hex = u => Array.from(u, b => b.toString(16).padStart(2, '0')).join('');
+const sha = async u => new Uint8Array(await crypto.subtle.digest('SHA-256', u));
+const ECDH = { name: 'ECDH', namedCurve: 'P-256' }, ECDSA = { name: 'ECDSA', namedCurve: 'P-256' }, SIGN = { name: 'ECDSA', hash: 'SHA-256' };
+const Lock = {
+  // the game code -> hidden topic name + shared key (slow on purpose, so codes can't be guessed quickly)
+  async forCode(code) {
+    const base = await crypto.subtle.importKey('raw', TE.encode(code), 'PBKDF2', false, ['deriveBits']);
+    const bits = new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: TE.encode('cyber-defenders/v1'), iterations: 100000 }, base, 256));
+    const topic = hex((await sha(join8(bits, TE.encode('topic')))).subarray(0, 12));
+    const key = await crypto.subtle.importKey('raw', await sha(join8(bits, TE.encode('key'))), 'AES-GCM', false, ['encrypt', 'decrypt']);
+    return { topic, key };
+  },
+  // pad: round the text up to a multiple of this many bytes, so sizes give nothing away
+  async seal(key, obj, pad = 0) {
+    let s = JSON.stringify(obj);
+    if (pad) s = s.padEnd(Math.ceil((s.length + 1) / pad) * pad);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    return toB64(join8(iv, new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, TE.encode(s)))));
+  },
+  async open(key, text) {
+    try {
+      const u = fromB64(text);
+      if (u.length < 29) return null;
+      return JSON.parse(TD.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.subarray(0, 12) }, key, u.subarray(12))));
+    } catch (e) { return null; }
+  },
+  // this device's key pairs, kept so a reload keeps the same identity
+  async pair(name, alg = ECDH, uses = ['deriveBits']) {
+    const saved = store.get(name);
+    if (saved && saved.priv && saved.pub) {
+      try { return { priv: await crypto.subtle.importKey('jwk', saved.priv, alg, false, uses), pub: saved.pub }; } catch (e) {}
+    }
+    const kp = await crypto.subtle.generateKey(alg, true, alg === ECDH ? ['deriveBits'] : ['sign', 'verify']);
+    const pub = toB64(new Uint8Array(await crypto.subtle.exportKey('raw', kp.publicKey)));
+    store.set(name, { priv: await crypto.subtle.exportKey('jwk', kp.privateKey), pub });
+    return { priv: kp.privateKey, pub };
+  },
+  async shared(myPriv, theirPub, topic) {
+    const pk = await crypto.subtle.importKey('raw', fromB64(theirPub), ECDH, false, []);
+    const bits = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: pk }, myPriv, 256));
+    return crypto.subtle.importKey('raw', await sha(join8(bits, TE.encode('peer/' + topic))), 'AES-GCM', false, ['encrypt', 'decrypt']);
+  },
+  async sign(priv, text) { return toB64(new Uint8Array(await crypto.subtle.sign(SIGN, priv, TE.encode(text)))); },
+  async verify(pubB64, sig, text) {
+    try { return await crypto.subtle.verify(SIGN, await crypto.subtle.importKey('raw', fromB64(pubB64), ECDSA, false, ['verify']), fromB64(sig), TE.encode(text)); } catch (e) { return false; }
+  },
+  // short fingerprint of the TV's two public keys, carried in the QR code
+  async fingerprint(hpk, hsk) { return hex((await sha(TE.encode(hpk + '|' + hsk))).subarray(0, 6)); },
+  // a phone's player id is the hash of its public key, so nobody can claim someone else's id
+  async pidFor(pub) { return hex((await sha(fromB64(pub))).subarray(0, 8)); },
+};
+
+// Topics, under cdx/<hidden topic>/:
+//   h         TV -> all      public game state (also the heartbeat), bots, positions catch-up   [game-code key, signed by the TV]
+//   p/<pid>   phone -> all   where that phone's crewmate is                                     [game-code key]
+//   u/<pid>   phone -> TV    hello [game-code key]; join, leave and moves [that phone's own key]
+//   d/<pid>   TV -> phone    that phone's role, tasks and notes                                 [that phone's own key]
+const Net = {
+  role: null,              // 'tv' | 'phone'
+  code: null, topic: null, key: null, mine: null, sig: null, fp: null,
+  links: [],               // one per relay: { url, c, topic, up, rx, chain }
+  open: false, everOpen: false, found: false, startedAt: 0, gen: 0, timer: 0,
+  out: Promise.resolve(),  // sends go out in order
+  // phone
+  home: null, pin: null, pinKey: null, hostKey: null, heardAt: 0, n: 0, outbox: [], tvTab: null, tvSince: 0, privHs: null, privV: -1, helloAt: 0, resendAt: 0, skews: [],
+  // TV
+  peers: {}, tab: rid(8), since: Date.now(), lastPub: null, lastBeatAt: 0, lastPrivAt: 0, fwd: new Map(), bc: null, upCount: 0,
+
+  async startTV(code, peers) {
+    this.peers = {};
+    for (const [pid, p] of Object.entries(peers || {})) {
+      const pub = typeof p === 'string' ? p : p && p.pub;
+      if (validPid(pid) && typeof pub === 'string') this.peers[pid] = { pub, n: p && typeof p.n === 'number' ? p.n : 0 };
+    }
+    return this.start('tv', code);
+  },
+  startPhone(code, fp) { return this.start('phone', code, fp); },
+  async start(role, code, fp) {
+    this.stop();
+    const gen = this.gen;
+    this.role = role; this.code = code; this.startedAt = Date.now();
+    render();
+    if (!window.crypto || !crypto.subtle || typeof window.mqtt === 'undefined') { App.offline = true; render(); return; }
+    const { topic, key } = await Lock.forCode(code);
+    const mine = await Lock.pair(role === 'tv' ? 'tvkey' : 'phonekey');
+    const sig = role === 'tv' ? await Lock.pair('tvsig', ECDSA, ['sign']) : null;
+    if (gen !== this.gen) return;   // stopped or restarted meanwhile
+    this.topic = topic; this.key = key; this.mine = mine; this.sig = sig;
+    if (role === 'tv') {
+      this.fp = await Lock.fingerprint(mine.pub, sig.pub);
+      Host.joinUrl = joinUrlFor(code, this.fp);
+      // another tab on this laptop taking the game over (only tabs here hold the TV's keys)
+      if ('BroadcastChannel' in window) {
+        this.bc = new BroadcastChannel('cyberdef-tv');
+        this.bc.onmessage = e => { const m = e.data || {}; if (m.code === this.code && m.tab !== this.tab && m.since > this.since) Host.onMessage({ t: 'replaced' }); };
+        this.bc.postMessage({ code, tab: this.tab, since: this.since });
+      }
+      render();
+    } else {
+      // pinned to the TV this phone first met for this code (or to the fingerprint in the QR code)
+      const pin = store.get('tvpin');
+      this.pin = pin && pin.code === code ? pin : null;
+      this.fp = this.pin ? this.pin.fp : (fp || null);
+    }
+    RELAYS.forEach(url => this.link(url));
+    this.timer = setInterval(() => this.watch(), 1000);
+  },
+  stop() {
+    this.gen++;
+    clearInterval(this.timer);
+    if (this.bc) { try { this.bc.close(); } catch (e) {} this.bc = null; }
+    // let anything already on its way (a "leave", the "game closed" state) go out, then hang up
+    const links = this.links;
+    for (const L of links) L.closing = true;
+    this.out.then(() => { for (const L of links) { L.dead = true; try { L.c.end(false); } catch (e) {} } });
+    this.links = []; this.home = null; this.outbox = []; this.upCount = 0;
+    this.open = false; this.found = false; this.everOpen = false; App.offline = false;
+    this.code = null; this.topic = null; this.key = null; this.pin = null; this.pinKey = null; this.hostKey = null; this.fp = null;
+    this.tvTab = null; this.tvSince = 0; this.privHs = null; this.privV = -1; this.lastPub = null; this.skews = [];
+  },
+  link(url) {
+    let c;
+    try { c = window.mqtt.connect(url, { clientId: 'cd' + rid(12), clean: true, keepalive: 20, connectTimeout: 9000, reconnectPeriod: 2500, resubscribe: false, protocolVersion: 4 }); } catch (e) { return; }
+    const L = { url, c, topic: this.topic, up: false, dead: false, closing: false, rx: 0, chain: Promise.resolve() };
+    c.on('connect', () => {
+      if (L.dead || L.closing) return;
+      L.up = true; L.rx = Date.now();
+      const T = sub => `cdx/${L.topic}/${sub}`;
+      c.subscribe(this.role === 'tv' ? [T('u/+'), T('p/+')] : [T('h'), T('p/+'), T('d/' + App.pid)], { qos: 1 });
+      this.linkUp(L);
+    });
+    c.on('close', () => { if (L.up) { L.up = false; this.linkDown(L); } });
+    c.on('error', () => {});
+    // one relay's messages are handled one at a time, in the order they came
+    c.on('message', (topic, payload) => { if (L.dead || L.closing) return; L.rx = Date.now(); L.chain = L.chain.then(() => this.onRelay(L, topic, String(payload))).catch(() => {}); });
+    this.links.push(L);
+  },
+  recycle(L) {
+    L.dead = true; L.closing = true;
+    try { L.c.end(true); } catch (e) {}
+    this.links = this.links.filter(x => x !== L);
+    if (this.home === L) this.home = null;
+    this.link(L.url);
+  },
+  publish(L, sub, text, qos = 0) { if (L && L.up && !L.dead) { try { L.c.publish(`cdx/${L.topic}/${sub}`, text, { qos }); } catch (e) {} } },
+  upLinks() { return this.links.filter(L => L.up); },
+  linkUp(L) {
+    if (this.role === 'tv') {
+      this.open = true; this.everOpen = true; App.offline = false;
+      if (this.lastPub) this.sendPub(this.lastPub, L);
+    } else if (!this.open || L === this.home) this.hello(L);   // while connected, only on this phone's own relay
+    this.countLinks();
+  },
+  linkDown(L) {
+    if (this.role === 'tv') { if (!this.upLinks().length) this.open = false; }
+    else if (L === this.home && this.open) this.lose();   // the phone's relay dropped: look for the TV again now
+    this.countLinks();
+  },
+  countLinks() { const n = this.upLinks().length; if (n !== this.upCount) { this.upCount = n; render(); } },
+  // phone: the TV went quiet, or its relay dropped: look for it again on every relay
+  lose() {
+    this.open = false; this.home = null;
+    clearTimeout(this.lostTimer); this.lostTimer = setTimeout(render, 61000);   // offers "Join a different game" after a minute
+    for (const url of RELAYS) if (!this.links.some(L => L.url === url)) this.link(url);
+    this.hello(null);
+    render();
+  },
+  // every second: keep the TV's heartbeat going; phones notice when the TV goes quiet
+  watch() {
+    const t = Date.now();
+    if (this.role === 'tv') {
+      if (!this.everOpen && t - this.startedAt > 12000 && !App.offline) { App.offline = true; render(); }
+      if (t - this.lastBeatAt >= 2000 && this.lastPub) { this.lastBeatAt = t; this.sendPub(this.lastPub); }
+      if (t - this.lastPrivAt >= 6000 && Host.active && Host.S) { this.lastPrivAt = t; for (const p of Host.S.players) if (!p.bot && this.peers[p.pid]) this.send({ t: 'priv', pid: p.pid, priv: Host.privateView(p.pid) }); }
+      for (const [k, at] of this.fwd) if (t - at > 15000) this.fwd.delete(k);
+      return;
+    }
+    if (!this.everOpen && !this.upLinks().length && t - this.startedAt > 12000 && !App.offline) { App.offline = true; render(); }
+    if (App.pub && App.pub.phase === 'closed') return;   // the TV closed this game: stop looking
+    if (this.open && t - this.heardAt > 8000) this.lose();
+    if (!this.open) {
+      // a relay that has gone silent while "connected" (e.g. after the phone slept): dial it again
+      for (const L of this.links.slice()) if (L.up && t - L.rx > 9000) this.recycle(L);
+    }
+    if (t - this.helloAt >= (this.open ? 10000 : 2500)) this.hello(this.open ? this.home : null);
+    if (this.open && this.outbox.length && t - this.resendAt >= 3000) this.resend();
+  },
+
+  // ---------- phone ----------
+  hello(L) {
+    if (!this.key) return;
+    this.helloAt = Date.now();
+    const targets = L ? [L] : this.upLinks();
+    this.out = this.out.then(async () => {
+      const text = 'c:' + await Lock.seal(this.key, { t: 'hello', pk: this.mine.pub });
+      for (const x of targets) this.publish(x, 'u/' + App.pid, text, 1);
+    }).catch(() => {});
+  },
+  // a message from the TV on 'h': "<signature>.<sealed>"
+  async fromTV(L, text) {
+    const dot = text.indexOf('.');
+    if (dot < 0) return;
+    const sigPart = text.slice(0, dot), sealed = text.slice(dot + 1);
+    if (this.pin && !(await this.pinVerify(sigPart, sealed))) return;
+    const m = await Lock.open(this.key, sealed);
+    if (!m || typeof m.t !== 'string') return;
+    if (!this.pin) {
+      // first contact: the message must be signed by the key it carries (and match the QR's fingerprint)
+      if (m.t !== 'pub' || typeof m.hpk !== 'string' || typeof m.hsk !== 'string') return;
+      if (!(await Lock.verify(m.hsk, sigPart, sealed))) return;
+      const fp = await Lock.fingerprint(m.hpk, m.hsk);
+      if (this.fp && fp !== this.fp) return;
+      this.pin = { code: this.code, hpk: m.hpk, hsk: m.hsk, fp };
+      store.set('tvpin', this.pin);
+      try { this.hostKey = await Lock.shared(this.mine.priv, m.hpk, this.topic); } catch (e) { this.pin = null; return; }
+    }
+    if (!this.hostKey) { try { this.hostKey = await Lock.shared(this.mine.priv, this.pin.hpk, this.topic); } catch (e) { return; } }
+    if (typeof m.now === 'number') this.clock(m.now);
+    if (m.t === 'pub') {
+      if (!m.pub || typeof m.tab !== 'string' || typeof m.since !== 'number') return;
+      // two tabs of the same TV: follow the newest
+      if (this.tvTab && m.tab !== this.tvTab && m.since < this.tvSince) return;
+      const newTab = m.tab !== this.tvTab;
+      this.tvTab = m.tab; this.tvSince = m.since;
+      const wasHome = this.home;
+      this.heard(L);
+      if (newTab && wasHome) this.hello(this.home);   // a reloaded TV relearns where this phone is
+      onMessage({ t: 'pub', pub: m.pub });
+    } else if (m.t === 'hello?') {
+      if (Array.isArray(m.pids) && m.pids.includes(App.pid)) this.hello(this.home && this.home.up ? this.home : L);
+    } else if (L === this.home) {
+      if (m.t === 'bots' && m.bots && typeof m.bots === 'object') onMessage({ t: 'bots', bots: m.bots });
+      else if (m.t === 'live' && m.live && typeof m.live === 'object') for (const [pid, p] of Object.entries(m.live)) if (pid !== App.pid && validPid(pid)) onMessage({ t: 'pos', pid, p });
+    }
+  },
+  async pinVerify(sig, sealed) {
+    if (!this.pinKey) { try { this.pinKey = await crypto.subtle.importKey('raw', fromB64(this.pin.hsk), ECDSA, false, ['verify']); } catch (e) { return false; } }
+    try { return await crypto.subtle.verify(SIGN, this.pinKey, fromB64(sig), TE.encode(sealed)); } catch (e) { return false; }
+  },
+  // the TV's clock: the newest of the last few readings (the one that spent least time in transit)
+  clock(tvNow) {
+    this.skews.push(tvNow - Date.now());
+    if (this.skews.length > 8) this.skews.shift();
+    App.skew = Math.max(...this.skews);
+  },
+  heard(L) {
+    this.heardAt = Date.now();
+    if (!this.home || !this.home.up) {
+      this.home = L;
+      this.hello(L);   // tell the TV which relay this phone is on now
+      this.resend();
+      // stay on the relay that answered first; let the others go
+      const gen = this.gen;
+      setTimeout(() => {
+        if (gen !== this.gen || !this.home || !this.open) return;
+        for (const x of this.links) if (x !== this.home) { x.dead = true; x.closing = true; try { x.c.end(true); } catch (e) {} }
+        this.links = [this.home];
+      }, 3000);
+    }
+    if (!this.open) { this.open = true; this.found = true; this.everOpen = true; App.offline = false; onConnected(); }
+  },
+  // join, leave and moves wait in the outbox until the TV confirms them
+  resend() {
+    this.resendAt = Date.now();
+    // a move older than 20 s is stale (the moment has passed); join and leave keep trying
+    this.outbox = this.outbox.filter(b => b.t !== 'act' || this.resendAt - b.n < 20000);
+    const L = this.home, key = this.hostKey;
+    if (!L || !L.up || !key || !this.outbox.length) return;
+    const items = this.outbox.slice();
+    this.out = this.out.then(async () => { for (const body of items) this.publish(L, 'u/' + App.pid, 'k:' + await Lock.seal(key, body, 256), 1); }).catch(() => {});
+  },
+
+  // ---------- TV ----------
+  // relays that phones are listening on right now
+  activeLinks() {
+    const t = Date.now(), set = new Set();
+    for (const p of Object.values(this.peers)) if (p.link && p.link.up && t - (p.seen || 0) < 45000) set.add(p.link);
+    return [...set];
+  },
+  // seal with the game-code key and sign, for 'h'
+  async signed(obj) {
+    const sealed = await Lock.seal(this.key, { ...obj, now: Date.now() });
+    return (await Lock.sign(this.sig.priv, sealed)) + '.' + sealed;
+  },
+  sendPub(pub, only) {
+    this.lastPub = pub;
+    if (!this.key) return;
+    const targets = only ? [only] : this.upLinks();
+    this.out = this.out.then(async () => {
+      const text = await this.signed({ t: 'pub', pub, hpk: this.mine.pub, hsk: this.sig.pub, tab: this.tab, since: this.since });
+      for (const L of targets) this.publish(L, 'h', text);
+    }).catch(() => {});
+  },
+  async keyFor(pid) {
+    const p = this.peers[pid];
+    if (!p) return null;
+    if (!p.key) { try { p.key = await Lock.shared(this.mine.priv, p.pub, this.topic); } catch (e) { return null; } }
+    return p.key;
+  },
+  // kept with the saved game: the keys (and last message number) of the players in it
+  peerPubs() {
+    const o = {}, inGame = new Set(Host.S ? Host.S.players.map(p => p.pid) : []);
+    for (const [pid, p] of Object.entries(this.peers)) if (inGame.has(pid)) o[pid] = { pub: p.pub, n: p.n || 0 };
+    return o;
+  },
+  async fromPhone(L, pid, text) {
+    let peer = this.peers[pid];
+    const t = Date.now();
+    if (text.startsWith('c:')) {
+      const m = await Lock.open(this.key, text.slice(2));
+      if (!m || m.t !== 'hello' || typeof m.pk !== 'string' || m.pk.length > 200) return;
+      if (await Lock.pidFor(m.pk) !== pid) return;   // the id must belong to this key
+      if (peer && peer.pub !== m.pk) return;
+      if (!peer) {
+        // keep at most 30 phones that haven't joined; forget the longest-silent first
+        const waiting = Object.entries(this.peers).filter(([id]) => !(Host.S && Host.S.players.some(p => p.pid === id)));
+        if (waiting.length >= 30) { waiting.sort((a, b) => (a[1].seen || 0) - (b[1].seen || 0)); delete this.peers[waiting[0][0]]; }
+        peer = this.peers[pid] = { pub: m.pk, n: 0 };
+        if (!(await this.keyFor(pid))) { delete this.peers[pid]; return; }
+      }
+      peer.link = L; peer.seen = t;
+      // catch the phone up (at most every 3 s): the game, its own role and tasks, where everyone is
+      if (t - (peer.caughtUp || 0) < 3000) return;
+      peer.caughtUp = t;
+      if (this.lastPub) this.sendPub(this.lastPub, L);
+      if (Host.active && Host.S && Host.S.players.some(p => p.pid === pid)) this.send({ t: 'priv', pid, priv: Host.privateView(pid) });
+      const live = {};
+      for (const [id, p] of Object.entries(App.live)) if (Host.S && Host.S.players.some(x => x.pid === id)) live[id] = p;
+      this.out = this.out.then(async () => { this.publish(L, 'h', await this.signed({ t: 'live', live })); }).catch(() => {});
+      return;
+    }
+    if (!text.startsWith('k:')) return;
+    if (!peer) {
+      // a phone the TV doesn't know yet (e.g. the TV page was reloaded): ask it to say hello
+      this.askHello(L, pid);
+      return;
+    }
+    const key = await this.keyFor(pid);
+    const m = key && await Lock.open(key, text.slice(2));
+    if (!m || typeof m.t !== 'string' || typeof m.n !== 'number') return;
+    peer.link = L; peer.seen = t;
+    if (m.n > (peer.n || 0)) {
+      peer.n = m.n;
+      if (m.t === 'join' || m.t === 'leave' || m.t === 'act') Host.onMessage({ t: m.t, pid, a: m.a, name: m.name });
+    }
+    // confirm it (also for a copy already handled), so the phone stops re-sending
+    if (Host.S && Host.S.players.some(p => p.pid === pid)) this.send({ t: 'priv', pid, priv: Host.privateView(pid) });
+    else this.send({ t: 'ack', pid });
+  },
+  askHello(L, pid) {
+    const t = Date.now();
+    this.asked = this.asked || {};
+    if (t - (this.asked[pid] || 0) < 3000) return;
+    this.asked[pid] = t;
+    this.out = this.out.then(async () => { this.publish(L, 'h', await this.signed({ t: 'hello?', pids: [pid] })); }).catch(() => {});
+  },
+
+  // ---------- both ----------
+  async onRelay(L, topic, text) {
+    const pre = `cdx/${L.topic}/`;
+    if (!this.topic || L.topic !== this.topic || !topic.startsWith(pre) || text.length > 200000) return;
+    const [kind, who] = topic.slice(pre.length).split('/');
+    if (this.role === 'tv') {
+      if (kind === 'p' && validPid(who)) {
+        if (this.fwd.has(text)) return;   // our own copy, passed on to another relay
+        const p = await Lock.open(this.key, text);
+        if (!p || typeof p !== 'object') return;
+        Host.onMessage({ t: 'pos', pid: who, p });
+        const peer = this.peers[who];
+        if (!peer) return;
+        peer.link = L; peer.seen = Date.now();
+        // phones on the other relays see this crewmate too
+        const others = this.activeLinks().filter(x => x !== L);
+        if (others.length) { this.fwd.set(text, Date.now()); for (const x of others) this.publish(x, 'p/' + who, text); }
+      } else if (kind === 'u' && validPid(who)) await this.fromPhone(L, who, text);
+      return;
+    }
+    if (kind === 'h') await this.fromTV(L, text);
+    else if (kind === 'p' && validPid(who) && who !== App.pid) {
+      if (this.home && L !== this.home) return;
+      const p = await Lock.open(this.key, text);
+      if (p && typeof p === 'object') onMessage({ t: 'pos', pid: who, p });
+    } else if (kind === 'd' && who === App.pid && this.hostKey) {
+      const m = await Lock.open(this.hostKey, text);
+      if (!m) return;
+      if (typeof m.ack === 'number') this.outbox = this.outbox.filter(b => b.n > m.ack);
+      if (m.t !== 'priv') return;
+      if (typeof m.now === 'number') this.clock(m.now);
+      if (m.hs === this.privHs && m.v < this.privV) return;   // an older copy
+      this.privHs = m.hs; this.privV = m.v;
+      onMessage({ t: 'priv', priv: m.priv });
+    }
+  },
+  // the same calls as before: the TV sends pub / priv / bots, phones send pos / join / leave / act
+  send(m) {
+    if (this.role === 'tv' && m.t === 'pub') return this.sendPub(m.pub);   // goes out as soon as a relay is up
+    if (!this.key) { if (this.role === 'phone' && m.t !== 'pos') this.outbox.push({ ...m, n: this.n = Math.max(this.n + 1, Date.now()) }); return; }
+    if (this.role === 'tv') {
+      const hs = Host.hs, v = Host.v;
+      this.out = this.out.then(async () => {
+        if (m.t === 'bots') {
+          const links = this.activeLinks();
+          if (links.length) { const text = await this.signed({ t: 'bots', bots: m.bots }); for (const L of links) this.publish(L, 'h', text); }
+        } else if (m.t === 'priv' || m.t === 'ack') {
+          const key = await this.keyFor(m.pid);
+          if (!key) return;
+          const peer = this.peers[m.pid];
+          const body = m.t === 'priv' ? { t: 'priv', priv: m.priv, hs, v, ack: peer.n || 0, now: Date.now() } : { t: 'ack', ack: peer.n || 0 };
+          const text = await Lock.seal(key, body, 1024);
+          for (const L of peer.link && peer.link.up ? [peer.link] : this.upLinks()) this.publish(L, 'd/' + m.pid, text, 1);
+        }
+      }).catch(() => {});
+      return;
+    }
+    if (m.t === 'pos') {
+      const L = this.home;
+      if (!L || !L.up) return;
+      this.out = this.out.then(async () => { this.publish(L, 'p/' + App.pid, await Lock.seal(this.key, m.p, 64)); }).catch(() => {});
+      return;
+    }
+    const body = { ...m, n: this.n = Math.max(this.n + 1, Date.now()) };
+    this.outbox.push(body);
+    if (this.outbox.length > 40) this.outbox.shift();
+    const L = this.home, key = this.hostKey;
+    if (!L || !L.up || !key || !this.open) return;   // goes out when the TV is found again
+    this.out = this.out.then(async () => { this.publish(L, 'u/' + App.pid, 'k:' + await Lock.seal(key, body, 256), 1); }).catch(() => {});
+  },
+};
+
+/* =========================================================================
+   The ship
+   ========================================================================= */
+const MAP_W = 58, MAP_H = 35;
+const ROOMS = [
+  { id: 'war', name: 'War Room', x: 22, y: 2, w: 16, h: 12 },
+  { id: 'upper', name: 'Upper Signal', x: 4, y: 3, w: 8, h: 7 },
+  { id: 'reactor', name: 'Reactor', x: 0, y: 13, w: 7, h: 10 },
+  { id: 'security', name: 'Security', x: 11, y: 14, w: 6, h: 5 },
+  { id: 'lower', name: 'Lower Signal', x: 4, y: 26, w: 8, h: 7 },
+  { id: 'power', name: 'Power Room', x: 15, y: 24, w: 7, h: 7 },
+  { id: 'storage', name: 'Storage', x: 25, y: 26, w: 10, h: 9 },
+  { id: 'admin', name: 'Admin', x: 27, y: 17, w: 7, h: 5 },
+  { id: 'server', name: 'Server Room', x: 42, y: 3, w: 8, h: 7 },
+  { id: 'clean', name: 'Clean Room', x: 39, y: 14, w: 6, h: 5 },
+  { id: 'network', name: 'Network Lab', x: 51, y: 13, w: 7, h: 9 },
+  { id: 'firewall', name: 'Firewall Bay', x: 42, y: 26, w: 8, h: 7 },
+];
+const HALLS = [
+  { x: 11.8, y: 5, w: 10.4, h: 2.6 }, { x: 6.8, y: 9.8, w: 2.7, h: 16.4 }, { x: 9.4, y: 15.2, w: 1.8, h: 2.6 },
+  { x: 11.8, y: 28, w: 3.4, h: 2.6 }, { x: 21.8, y: 28, w: 3.4, h: 2.6 }, { x: 29, y: 13.8, w: 2.6, h: 3.4 },
+  { x: 29, y: 21.8, w: 2.6, h: 4.4 }, { x: 37.8, y: 5, w: 4.4, h: 2.6 }, { x: 46.4, y: 9.8, w: 2.6, h: 16.4 },
+  { x: 44.8, y: 15.4, w: 1.8, h: 2.6 }, { x: 48.8, y: 16, w: 2.4, h: 2.6 }, { x: 34.8, y: 29, w: 7.4, h: 2.6 },
+];
+const RECTS = [...ROOMS, ...HALLS];
+const TASKS = {
+  wires: { name: 'Fix Network', hint: 'Match the coloured cables' },
+  power: { name: 'Restore Power', hint: 'Switch the breakers back on' },
+  clean: { name: 'Clean System', hint: 'Remove the malware' },
+  signal: { name: 'Signal Check', hint: 'Align the signal' },
+  file: { name: 'Restore File', hint: 'Complete the file transfer' },
+  verify: { name: 'System Verification', hint: 'Repeat the light sequence' },
+};
+const STATIONS = [
+  { id: 'w1', t: 'wires', room: 'server', x: 45, y: 3.9 }, { id: 'w2', t: 'wires', room: 'power', x: 18.5, y: 24.9 },
+  { id: 'w3', t: 'wires', room: 'storage', x: 26.5, y: 26.9 }, { id: 'p1', t: 'power', room: 'power', x: 16, y: 29.8 },
+  { id: 'c1', t: 'clean', room: 'clean', x: 42, y: 14.9 }, { id: 's1', t: 'signal', room: 'upper', x: 5, y: 5 },
+  { id: 's2', t: 'signal', room: 'lower', x: 5, y: 31.5 }, { id: 's3', t: 'signal', room: 'network', x: 57, y: 17.5 },
+  { id: 'f1', t: 'file', room: 'admin', x: 32.5, y: 17.9 }, { id: 'f2', t: 'file', room: 'war', x: 23.5, y: 2.9 },
+  { id: 'v1', t: 'verify', room: 'reactor', x: 1, y: 18 }, { id: 'v2', t: 'verify', room: 'security', x: 16, y: 15 },
+];
+const STATION = Object.fromEntries(STATIONS.map(s => [s.id, s]));
+const ROOM = Object.fromEntries(ROOMS.map(r => [r.id, r]));
+const FIXES = {
+  lights: { x: 21, y: 30.2, room: 'power', game: 'power', name: 'Power outage', fix: 'Fix the lights in the Power Room' },
+  firewall: { x: 46, y: 32.2, room: 'firewall', game: 'scan', name: 'Firewall breach', fix: 'Stop the breach in the Firewall Bay' },
+};
+const TABLE = { x: 30, y: 8, r: 1.7 };
+const VENTS = [
+  { x: 2, y: 21.5, g: 'a' }, { x: 10.8, y: 8.6, g: 'a' }, { x: 10.8, y: 31.6, g: 'a' },
+  { x: 16, y: 18, g: 'b' }, { x: 21, y: 25.2, g: 'b' },
+  { x: 33, y: 21, g: 'c' }, { x: 36.6, y: 12.8, g: 'c' }, { x: 44, y: 18, g: 'c' },
+  { x: 49, y: 4.2, g: 'd' }, { x: 52, y: 21, g: 'd' }, { x: 49, y: 27, g: 'd' },
+];
+const CAMS = [
+  { name: 'War Room', x: 30, y: 8, w: 16.5, h: 12.5 }, { name: 'Server Room', x: 46, y: 6.5, w: 10, h: 8 },
+  { name: 'Power Room', x: 18.5, y: 27.5, w: 10, h: 8 }, { name: 'Storage', x: 30, y: 30.5, w: 12, h: 9.5 }, { name: 'Reactor', x: 4, y: 18, w: 10, h: 10 },
+];
+const SPEED = 3.4, RADIUS = 0.35;
+const RANGE = { kill: 1.9, report: 3, use: 1.7, table: 3.1, vent: 1.3, fix: 1.8 };
+const VISION = { crew: 5.2, hacker: 7, dark: 2.1 };
+const spawnPoint = seat => { const a = -Math.PI / 2 + seat * (Math.PI * 2 / 10); return { x: TABLE.x + Math.cos(a) * 3.1, y: TABLE.y + Math.sin(a) * 3.1 }; };
+
+/* ---------- geometry ---------- */
+const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+const walkPt = (x, y) => RECTS.some(r => inRect(r, x, y));
+const OFFS = Array.from({ length: 8 }, (_, i) => [Math.cos(i * Math.PI / 4) * RADIUS, Math.sin(i * Math.PI / 4) * RADIUS]);
+function canStand(x, y) {
+  if (!walkPt(x, y)) return false;
+  for (const [dx, dy] of OFFS) if (!walkPt(x + dx, y + dy)) return false;
+  return Math.hypot(x - TABLE.x, y - TABLE.y) >= TABLE.r + RADIUS;
+}
+function moveBy(p, dx, dy, ghost) {
+  if (ghost) { p.x = clamp(p.x + dx, 0.5, MAP_W - 0.5); p.y = clamp(p.y + dy, 0.5, MAP_H - 0.5); return; }
+  if (canStand(p.x + dx, p.y)) p.x += dx;
+  if (canStand(p.x, p.y + dy)) p.y += dy;
+}
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+// Navigation for practice bots: doors are the overlaps between neighbouring rooms and halls.
+const DOORS = [];
+for (let i = 0; i < RECTS.length; i++) for (let j = i + 1; j < RECTS.length; j++) {
+  const A = RECTS[i], B = RECTS[j];
+  const x1 = Math.max(A.x, B.x), x2 = Math.min(A.x + A.w, B.x + B.w), y1 = Math.max(A.y, B.y), y2 = Math.min(A.y + A.h, B.y + B.h);
+  if (x2 >= x1 && y2 >= y1) DOORS.push({ a: i, b: j, x: (x1 + x2) / 2, y: (y1 + y2) / 2 });
+}
+const rectAt = (x, y) => RECTS.findIndex(r => inRect(r, x, y));
+function route(from, to) {
+  const s = rectAt(from.x, from.y), g = rectAt(to.x, to.y);
+  if (s < 0 || g < 0) return [to];
+  const prev = new Map([[s, null]]), q = [s];
+  while (q.length) {
+    const c = q.shift();
+    if (c === g) break;
+    for (const d of DOORS) {
+      const n = d.a === c ? d.b : d.b === c ? d.a : -1;
+      if (n >= 0 && !prev.has(n)) { prev.set(n, { from: c, door: d }); q.push(n); }
+    }
+  }
+  if (!prev.has(g)) return [to];
+  const pts = [to];
+  for (let c = g; prev.get(c); c = prev.get(c).from) pts.unshift({ x: prev.get(c).door.x, y: prev.get(c).door.y });
+  // step round the War Room table
+  const out = [];
+  let p = from;
+  for (const q2 of pts) {
+    const dx = q2.x - p.x, dy = q2.y - p.y, L = Math.hypot(dx, dy) || 1;
+    const t = clamp(((TABLE.x - p.x) * dx + (TABLE.y - p.y) * dy) / (L * L), 0, 1);
+    if (Math.hypot(p.x + dx * t - TABLE.x, p.y + dy * t - TABLE.y) < TABLE.r + 0.7) {
+      let nx = -dy / L, ny = dx / L;
+      if ((p.x - TABLE.x) * nx + (p.y - TABLE.y) * ny < 0) { nx = -nx; ny = -ny; }
+      const R2 = TABLE.r + 1.2;
+      out.push({ x: TABLE.x + nx * R2 - dx / L * 0.8, y: TABLE.y + ny * R2 - dy / L * 0.8 });
+      out.push({ x: TABLE.x + nx * R2 + dx / L * 0.8, y: TABLE.y + ny * R2 + dy / L * 0.8 });
+    }
+    out.push(q2);
+    p = q2;
+  }
+  return out;
+}
+
+/* =========================================================================
+   Drawing: crewmates, bodies and the ship
+   ========================================================================= */
+function crewPath(g) {
+  g.beginPath();
+  g.moveTo(28, 108); g.lineTo(28, 46); g.bezierCurveTo(28, 12, 76, 12, 76, 46); g.lineTo(76, 108);
+  g.lineTo(60, 108); g.lineTo(60, 94); g.lineTo(44, 94); g.lineTo(44, 108); g.closePath();
+}
+const rrect = (g, x, y, w, h2, r) => { g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, h2, r); else g.rect(x, y, w, h2); };
+function drawCrew(g, x, y, size, color, dir, opt = {}) {
+  const alpha = opt.alpha == null ? 1 : opt.alpha;
+  g.save();
+  g.translate(x, y + (opt.bob || 0));
+  g.scale((dir < 0 ? -1 : 1) * size / 112, size / 112);
+  g.translate(-52, -108);
+  g.globalAlpha = alpha;
+  g.lineWidth = 7; g.strokeStyle = '#0b0f16'; g.lineJoin = 'round';
+  g.fillStyle = shade(color, -0.3); rrect(g, 12, 48, 20, 40, 8); g.fill(); g.stroke();
+  g.fillStyle = color; crewPath(g); g.fill(); g.stroke();
+  g.fillStyle = '#9fdcf5'; g.beginPath(); g.ellipse(62, 44, 17, 11, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.fillStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.ellipse(67, 40, 7, 3.5, 0, 0, Math.PI * 2); g.fill();
+  g.restore();
+}
+function drawBody(g, x, y, size, color) {
+  g.save();
+  g.translate(x, y); g.scale(size / 112, size / 112); g.translate(-52, -108);
+  g.lineWidth = 7; g.strokeStyle = '#0b0f16'; g.lineJoin = 'round';
+  g.fillStyle = color;
+  g.beginPath(); g.moveTo(28, 108); g.lineTo(28, 74); g.lineTo(76, 74); g.lineTo(76, 108); g.lineTo(60, 108); g.lineTo(60, 94); g.lineTo(44, 94); g.lineTo(44, 108); g.closePath(); g.fill(); g.stroke();
+  g.fillStyle = '#f2ecdc'; rrect(g, 46, 56, 10, 22, 4); g.fill(); g.stroke();
+  g.beginPath(); g.arc(46, 56, 6, 0, Math.PI * 2); g.arc(56, 56, 6, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#ff2e45'; g.lineWidth = 4;
+  for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(24 + i * 6, 84 + i * 7); g.lineTo(80 - i * 4, 84 + i * 7); g.stroke(); }
+  g.restore();
+}
+function crewSVG(color, opt = {}) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 104 116'); svg.setAttribute('aria-hidden', 'true');
+  const add = attrs => { const e = document.createElementNS(ns, attrs.tag); for (const [k, v] of Object.entries(attrs)) if (k !== 'tag') e.setAttribute(k, v); svg.append(e); };
+  const st = { stroke: '#0b0f16', 'stroke-width': '7', 'stroke-linejoin': 'round' };
+  if (opt.out) svg.style.opacity = '.5';
+  add({ tag: 'rect', x: 12, y: 48, width: 20, height: 40, rx: 8, fill: shade(color, -0.3), ...st });
+  add({ tag: 'path', d: 'M28 108 V46 C28 12 76 12 76 46 V108 H60 V94 H44 V108 Z', fill: color, ...st });
+  add({ tag: 'ellipse', cx: 62, cy: 44, rx: 17, ry: 11, fill: '#9fdcf5', ...st });
+  add({ tag: 'ellipse', cx: 67, cy: 40, rx: 7, ry: 3.5, fill: 'rgba(255,255,255,.75)' });
+  if (opt.out) add({ tag: 'path', d: 'M18 20 L92 100 M92 20 L18 100', stroke: '#ff2e45', 'stroke-width': '10', 'stroke-linecap': 'round' });
+  return svg;
+}
+function nameTag(g, x, y, text, px, color) {
+  g.font = `800 ${px}px ${CANVAS_FONT}`;
+  g.textAlign = 'center'; g.textBaseline = 'bottom';
+  g.lineWidth = Math.max(2, px / 4); g.strokeStyle = '#000'; g.strokeText(text, x, y);
+  g.fillStyle = color || '#fff'; g.fillText(text, x, y);
+}
+// The ship is drawn once into an offscreen image and then cropped per view.
+const MAP_PX = 28;
+let MAPIMG = null;
+function buildMap() {
+  const c = document.createElement('canvas');
+  c.width = MAP_W * MAP_PX; c.height = MAP_H * MAP_PX;
+  const g = c.getContext('2d'), u = MAP_PX;
+  g.fillStyle = '#04060b'; g.fillRect(0, 0, c.width, c.height);
+  for (let i = 0; i < 260; i++) { g.fillStyle = `rgba(255,255,255,${0.15 + Math.random() * 0.5})`; g.fillRect(Math.random() * c.width, Math.random() * c.height, 1.5, 1.5); }
+  for (const r of RECTS) { g.fillStyle = '#5d6d80'; g.fillRect((r.x - 0.35) * u, (r.y - 0.35) * u, (r.w + 0.7) * u, (r.h + 0.7) * u); }
+  for (const r of RECTS) { g.fillStyle = '#2c3a4a'; g.fillRect((r.x - 0.12) * u, (r.y - 0.12) * u, (r.w + 0.24) * u, (r.h + 0.24) * u); }
+  for (const r of ROOMS) {
+    g.fillStyle = '#2a3b4f'; g.fillRect(r.x * u, r.y * u, r.w * u, r.h * u);
+    g.strokeStyle = 'rgba(255,255,255,.05)'; g.lineWidth = 1;
+    for (let x = r.x; x <= r.x + r.w; x += 1) { g.beginPath(); g.moveTo(x * u, r.y * u); g.lineTo(x * u, (r.y + r.h) * u); g.stroke(); }
+    for (let y = r.y; y <= r.y + r.h; y += 1) { g.beginPath(); g.moveTo(r.x * u, y * u); g.lineTo((r.x + r.w) * u, y * u); g.stroke(); }
+  }
+  for (const r of HALLS) { g.fillStyle = '#1f2c3b'; g.fillRect(r.x * u, r.y * u, r.w * u, r.h * u); }
+  for (const d of DOORS) {
+    const A = RECTS[d.a], B = RECTS[d.b];
+    const x1 = Math.max(A.x, B.x), x2 = Math.min(A.x + A.w, B.x + B.w), y1 = Math.max(A.y, B.y), y2 = Math.min(A.y + A.h, B.y + B.h);
+    g.fillStyle = '#26354a'; g.fillRect(x1 * u - 2, y1 * u - 2, (x2 - x1) * u + 4, (y2 - y1) * u + 4);
+  }
+  for (const r of ROOMS) {
+    g.font = `800 ${u * 0.62}px system-ui, sans-serif`; g.textAlign = 'center'; g.fillStyle = 'rgba(207,227,247,.5)';
+    g.fillText(r.name, (r.x + r.w / 2) * u, (r.y + r.h / 2 + 0.2) * u);
+  }
+  g.fillStyle = '#41556d'; g.strokeStyle = '#0b0f16'; g.lineWidth = 4;
+  g.beginPath(); g.arc(TABLE.x * u, TABLE.y * u, TABLE.r * u, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.fillStyle = '#9fb1c6'; g.beginPath(); g.arc(TABLE.x * u, TABLE.y * u, 0.55 * u, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.fillStyle = '#e0283e'; g.beginPath(); g.arc(TABLE.x * u, TABLE.y * u, 0.36 * u, 0, Math.PI * 2); g.fill();
+  for (const s of STATIONS) {
+    g.fillStyle = '#16212d'; g.strokeStyle = '#0b0f16'; g.lineWidth = 3;
+    g.fillRect((s.x - 0.55) * u, (s.y - 0.45) * u, 1.1 * u, 0.9 * u); g.strokeRect((s.x - 0.55) * u, (s.y - 0.45) * u, 1.1 * u, 0.9 * u);
+    g.fillStyle = '#2f8fa0'; g.fillRect((s.x - 0.4) * u, (s.y - 0.32) * u, 0.8 * u, 0.42 * u);
+  }
+  for (const f of Object.values(FIXES)) {
+    g.fillStyle = '#2a1820'; g.strokeStyle = '#0b0f16'; g.lineWidth = 3;
+    g.fillRect((f.x - 0.5) * u, (f.y - 0.5) * u, u, u); g.strokeRect((f.x - 0.5) * u, (f.y - 0.5) * u, u, u);
+    g.fillStyle = '#b3122e'; g.fillRect((f.x - 0.3) * u, (f.y - 0.3) * u, 0.6 * u, 0.25 * u);
+  }
+  for (const v of VENTS) {
+    g.fillStyle = '#10161e'; g.strokeStyle = '#556678'; g.lineWidth = 3;
+    g.fillRect((v.x - 0.55) * u, (v.y - 0.35) * u, 1.1 * u, 0.7 * u); g.strokeRect((v.x - 0.55) * u, (v.y - 0.35) * u, 1.1 * u, 0.7 * u);
+    for (let i = 1; i < 4; i++) { g.beginPath(); g.moveTo((v.x - 0.55 + i * 0.275) * u, (v.y - 0.35) * u); g.lineTo((v.x - 0.55 + i * 0.275) * u, (v.y + 0.35) * u); g.stroke(); }
+  }
+  MAPIMG = c;
+}
+
+/* =========================================================================
+   App state
+   ========================================================================= */
+const DEFAULTS = { killCd: 25, disc: 15, vote: 60, tasks: 4, meetings: 1 };
+const MIN_PLAYERS = 4, MAX_PLAYERS = 10;
+const BOT_NAMES = ['Byte', 'Pixel', 'Nova', 'Echo', 'Cipher', 'Vector', 'Delta', 'Orbit', 'Kilo'];
+const App = {
+  role: null,            // 'host' (TV) | 'player'
+  pid: null, name: '',
+  pub: null, skew: 0, priv: null,
+  live: {},              // pid -> {x, y, d, m, hide}: where each phone's crewmate is
+  bots: null,            // practice bots' positions, sent by the TV
+  hostOnline: false, offline: false,
+  ui: { revealed: false, voteSel: null, sound: false, map: false, sabMenu: false, confirm: null },
+  booted: false,
+};
+const now = () => Date.now() + App.skew;
+const me = () => App.pub && App.pub.players.find(p => p.pid === App.pid);
+const playerBy = pid => App.pub && App.pub.players.find(p => p.pid === pid);
+const nameOf = pid => (playerBy(pid) || {}).name || 'Someone';
+const inRound = pub => !!pub && ['reveal', 'play', 'meeting', 'result', 'end'].includes(pub.phase);
+
+/* =========================================================================
+   Host engine (TV laptop, or this device in solo practice). The only place
+   where roles live in the clear.
+   ========================================================================= */
+const Host = {
+  active: false, solo: false, hs: null, S: null, v: 0, joinUrl: null, sentPriv: {},
+  bots: {}, tickTimer: 0, botTimer: 0, committing: false, dirty: false, commitDone: null, lastBotPres: '', lastBotAt: 0,
+
+  fresh() {
+    return { roles: {}, life: {}, confirmed: {}, tasks: {}, meetingsLeft: {}, bodies: [], notes: {}, lastSeq: {}, killer: {},
+      progress: 0, total: 0, killReadyAt: 0, sabReadyAt: 0, sab: null, meeting: null, result: null, end: null, revealEnds: 0, spawn: 0 };
+  },
+  begin(opts = {}) {
+    this.active = true;
+    this.solo = !!opts.solo;
+    App.role = this.solo ? 'player' : 'host';
+    if (!this.solo) document.body.classList.add('tv');
+    App.skew = 0;
+    const saved = opts.saved;
+    if (saved && saved.S && saved.S.phase !== 'closed') { this.hs = saved.hs; this.S = saved.S; this.v = saved.v || 1; }
+    else { this.hs = rid(10); this.v = 0; this.S = { gid: rid(8), phase: 'lobby', settings: { ...DEFAULTS }, players: [], kicked: {}, ...this.fresh() }; App.live = {}; App.bots = null; }
+    this.sentPriv = {};
+    clearInterval(this.tickTimer); clearInterval(this.botTimer);
+    this.tickTimer = setInterval(() => this.tick(), 250);
+    this.botTimer = setInterval(() => this.botStep(), 50);
+    keepAwake();
+    if (this.solo) {
+      this.S.players = [{ pid: App.pid, name: App.name || 'You', seat: 0 }];
+      for (let i = 0; i < 4; i++) this.addBot(true);
+      this.start();
+      return;
+    }
+    if (saved) this.placeBots();
+    return this.commit();
+  },
+  stop(message, kind) {
+    const wasTV = this.active && !this.solo;
+    this.active = false; this.solo = false;
+    clearInterval(this.tickTimer); clearInterval(this.botTimer);
+    document.body.classList.remove('tv');
+    App.role = 'player';
+    App.pub = null; App.priv = null;
+    if (wasTV) {
+      Net.stop();
+      // a reload now goes to the start page, not back into this game
+      const q = new URLSearchParams(location.search);
+      q.delete('tv');
+      history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : ''));
+    }
+    if (message) { App.tvNote = { text: message, kind: kind || 'closed' }; toast(message); }
+    render();
+  },
+  // kept on this laptop, so reloading the TV page carries on with the same game
+  save() { if (!this.solo && this.S) store.set('host', { code: Net.code, hs: this.hs, S: this.S, v: this.v, peers: Net.peerPubs(), at: Date.now() }); },
+
+  // ---- inputs from phones (through the server) ----
+  onMessage(m) {
+    if (m.t === 'join') this.onJoin(m.pid, m.name);
+    else if (m.t === 'leave') this.leave(m.pid);
+    else if (m.t === 'act' && m.a && typeof m.a === 'object' && typeof m.a.t === 'string') { if (m.a.gid === this.S.gid) this.handle(m.pid, m.a); }
+    else if (m.t === 'pos' && typeof m.pid === 'string') App.live[m.pid] = m.p;
+    else if (m.t === 'replaced') this.stop('This game moved to another tab on this laptop.', 'replaced');
+  },
+  onJoin(pid, rawName) {
+    const S = this.S;
+    if (typeof pid !== 'string' || S.phase !== 'lobby') return;
+    if (S.kicked && Date.now() - (S.kicked[pid] || 0) < 20000) return;   // just removed by the host
+    const name = cleanName(rawName);
+    if (!name) return;
+    const p = S.players.find(x => x.pid === pid);
+    if (p) { if (p.name !== name) { p.name = this.uniqueName(name, pid); this.commit(); } return; }
+    if (S.players.length >= MAX_PLAYERS) return;
+    S.players.push({ pid, name: this.uniqueName(name, pid), seat: S.players.length });
+    this.commit();
+  },
+  leave(pid) {
+    const S = this.S;
+    if (S.phase !== 'lobby') return;
+    const i = S.players.findIndex(p => p.pid === pid);
+    if (i >= 0) { S.players.splice(i, 1); this.reseat(); this.commit(); }
+  },
+  uniqueName(name, pid) {
+    const taken = new Set(this.S.players.filter(p => p.pid !== pid).map(p => p.name.toLowerCase()));
+    if (!taken.has(name.toLowerCase())) return name;
+    for (let n = 2; ; n++) { const c = `${name.slice(0, 11)} ${n}`; if (!taken.has(c.toLowerCase())) return c; }
+  },
+  reseat() { this.S.players.forEach((p, i) => { p.seat = i; }); },
+  posOf(pid) {
+    if (this.actorAt && this.actorAt.pid === pid) return this.actorAt;
+    const p = this.S.players.find(x => x.pid === pid);
+    if (!p) return null;
+    if (p.bot) return this.bots[pid] ? this.bots[pid].pos : null;
+    if (this.solo && pid === App.pid) return Local.pos;
+    const l = App.live[pid];
+    return l && Number.isFinite(l.x) && Number.isFinite(l.y) ? { x: l.x, y: l.y } : null;
+  },
+  near(pid, pt, range) { const p = this.posOf(pid); return !p || dist(p, pt) <= range + 1.6; },
+
+  // ---- rules ----
+  // the phone says where it stood when it acted, under its own key (positions on the shared channel can be faked)
+  handle(pid, a) {
+    const at = a && a.at;
+    this.actorAt = at && Number.isFinite(at.x) && Number.isFinite(at.y) ? { pid, x: at.x, y: at.y } : null;
+    try { this.handleAct(pid, a); } finally { this.actorAt = null; }
+  },
+  handleAct(pid, a) {
+    const S = this.S, t = Date.now();
+    const p = S.players.find(x => x.pid === pid);
+    if (!p) return;
+    const role = S.roles[pid], alive = S.life[pid] === 'alive';
+    const note = (who, text, kind) => { S.notes[who] = { id: rid(6), text, kind: kind || 'info' }; };
+    const nm = id => (S.players.find(x => x.pid === id) || {}).name || 'Someone';
+    switch (a.t) {
+      case 'task': {
+        if (S.phase !== 'play') return;
+        const task = (S.tasks[pid] || [])[a.i];
+        if (!task || task.done || !this.near(pid, STATION[task.st], RANGE.use)) return;
+        task.done = true;
+        if (role === 'defender') S.progress = Math.min(S.total, S.progress + 1);
+        this.checkWin();
+        break;
+      }
+      case 'fix':
+        if (S.phase !== 'play' || !S.sab || S.sab.kind !== a.kind || !alive || !this.near(pid, FIXES[a.kind], RANGE.fix)) return;
+        S.sab = null;
+        break;
+      case 'sabotage':
+        if (S.phase !== 'play' || role !== 'hacker' || !alive || S.sab || t < S.sabReadyAt || !FIXES[a.kind]) return;
+        S.sab = { kind: a.kind, endsAt: a.kind === 'firewall' ? t + 45000 : 0, at: t };
+        S.sabReadyAt = t + 35000;
+        break;
+      case 'kill': {
+        if (S.phase !== 'play' || role !== 'hacker' || !alive || t < S.killReadyAt) return;
+        const tg = a.target;
+        if (tg === pid || S.life[tg] !== 'alive' || S.roles[tg] !== 'defender') return;
+        const tp = this.posOf(tg), kp = this.posOf(pid);
+        if (tp && kp && dist(tp, kp) > RANGE.kill + 1.6) return;
+        S.life[tg] = 'dead';
+        S.killer[tg] = pid;
+        const at = tp || kp || spawnPoint(0);
+        S.bodies.push({ pid: tg, x: Math.round(at.x * 100) / 100, y: Math.round(at.y * 100) / 100 });
+        S.killReadyAt = t + S.settings.killCd * 1000;
+        note(tg, `You were compromised by ${nm(pid)}. You're a ghost now: stay silent, but keep doing tasks.`, 'bad');
+        this.checkWin();
+        break;
+      }
+      case 'report': {
+        if (S.phase !== 'play' || !alive) return;
+        const b = S.bodies.find(x => x.pid === a.body);
+        if (!b || !this.near(pid, b, RANGE.report)) return;
+        this.startMeeting('report', pid, b.pid);
+        break;
+      }
+      case 'button':
+        if (S.phase !== 'play' || !alive || !(S.meetingsLeft[pid] > 0) || (S.sab && S.sab.kind === 'firewall') || !this.near(pid, TABLE, RANGE.table)) return;
+        S.meetingsLeft[pid]--;
+        this.startMeeting('button', pid, null);
+        break;
+      case 'vote': {
+        const M = S.meeting;
+        if (S.phase !== 'meeting' || !alive || M.votes[pid] != null || t < M.voteFrom - 500) return;
+        if (a.mid != null && a.mid !== M.voteFrom) return;   // a vote meant for an earlier meeting
+        if (a.target !== 'skip' && S.life[a.target] !== 'alive') return;
+        M.votes[pid] = a.target;
+        if (S.players.filter(x => S.life[x.pid] === 'alive').every(x => M.votes[x.pid] != null)) this.endMeeting();
+        break;
+      }
+      default: return;
+    }
+    this.commit();
+  },
+  aliveDefenders() { const S = this.S; return S.players.filter(p => S.roles[p.pid] === 'defender' && S.life[p.pid] === 'alive').length; },
+  hackerAlive() { const S = this.S; return S.players.some(p => S.roles[p.pid] === 'hacker' && S.life[p.pid] === 'alive'); },
+  checkWin() {
+    const S = this.S;
+    if (S.phase !== 'play') return;
+    if (S.progress >= S.total) this.finish('defenders', 'tasks');
+    else if (this.hackerAlive() && this.aliveDefenders() <= 1) this.finish('hacker', 'parity');
+  },
+  startMeeting(reason, by, body) {
+    const S = this.S, t = Date.now();
+    S.sab = null;
+    S.players.forEach(p => { if (S.life[p.pid] === 'dead') S.confirmed[p.pid] = true; });
+    S.bodies = [];
+    S.meeting = { reason, by, body, voteFrom: t + S.settings.disc * 1000, endsAt: t + (S.settings.disc + S.settings.vote) * 1000, votes: {} };
+    S.phase = 'meeting';
+    Object.values(this.bots).forEach(b => { b.voteAt = 0; b.path = null; b.busyUntil = 0; b.goal = null; });
+  },
+  endMeeting() {
+    const S = this.S, t = Date.now();
+    const seat = id => (S.players.find(p => p.pid === id) || {}).seat || 0;
+    const tally = {}; let skip = 0;
+    for (const v of Object.values(S.meeting.votes)) { if (v === 'skip') skip++; else tally[v] = (tally[v] || 0) + 1; }
+    const ranked = Object.entries(tally).sort((a, b) => b[1] - a[1] || seat(a[0]) - seat(b[0]));
+    let ej = null, tie = false;
+    if (ranked.length) { const [top, n] = ranked[0]; tie = ranked.length > 1 && ranked[1][1] === n; if (!tie && n > skip) ej = top; }
+    if (ej) S.life[ej] = 'ejected';
+    S.result = { ej, wasHacker: ej ? S.roles[ej] === 'hacker' : false, tie, skip, ranked, votes: Object.keys(S.meeting.votes).length, endsAt: t + 7000 };
+    S.phase = 'result';
+  },
+  afterResult() {
+    const S = this.S, t = Date.now();
+    const r = S.result;
+    S.meeting = null; S.result = null;
+    if (r.ej && r.wasHacker) return this.finish('defenders', 'ejected');
+    if (this.hackerAlive() && this.aliveDefenders() <= 1) return this.finish('hacker', 'parity');
+    S.phase = 'play';
+    S.spawn++;
+    S.killReadyAt = t + S.settings.killCd * 1000;
+    S.sabReadyAt = Math.max(S.sabReadyAt, t + 15000);
+    this.placeBots();
+  },
+  finish(winner, reason) { const S = this.S; S.end = { winner, reason, at: Date.now() }; S.phase = 'end'; S.sab = null; S.meeting = null; },
+
+  // ---- host controls ----
+  addBot(quiet) {
+    const S = this.S;
+    if (S.phase !== 'lobby' || S.players.length >= MAX_PLAYERS) return;
+    const used = new Set(S.players.map(p => p.name));
+    const name = BOT_NAMES.find(n => !used.has(n)) || `Bot ${S.players.length + 1}`;
+    S.players.push({ pid: 'bot-' + rid(6), name, bot: true, seat: S.players.length });
+    if (!quiet) this.commit();
+  },
+  remove(pid) {
+    const S = this.S;
+    if (S.phase !== 'lobby') return;
+    S.players = S.players.filter(p => p.pid !== pid);
+    if (!pid.startsWith('bot-')) S.kicked[pid] = Date.now();
+    this.reseat();
+    this.commit();
+  },
+  setSetting(k, v) { if (this.S.phase === 'lobby') { this.S.settings[k] = v; this.commit(); } },
+  start() {
+    const S = this.S, n = S.players.length;
+    if ((S.phase !== 'lobby' && S.phase !== 'end') || n < MIN_PLAYERS) return;
+    const players = S.players, settings = S.settings, kicked = S.kicked;
+    Object.assign(S, this.fresh(), { players, settings, kicked });
+    S.gid = rid(8);
+    const hacker = pick(players).pid;
+    for (const p of players) {
+      S.roles[p.pid] = p.pid === hacker ? 'hacker' : 'defender';
+      S.life[p.pid] = 'alive';
+      const byType = {};
+      for (const st of shuffle(STATIONS)) if (!byType[st.t]) byType[st.t] = st;
+      S.tasks[p.pid] = shuffle(Object.values(byType)).slice(0, S.settings.tasks).map(st => ({ st: st.id, done: false }));
+      S.meetingsLeft[p.pid] = S.settings.meetings;
+    }
+    S.total = (n - 1) * S.settings.tasks;
+    S.phase = 'reveal';
+    S.revealEnds = Date.now() + 7000;
+    S.spawn = (S.spawn || 0) + 1;
+    this.bots = {};
+    this.placeBots();
+    this.commit();
+  },
+  backToLobby() {
+    const S = this.S;
+    const players = S.players, settings = S.settings, kicked = S.kicked;
+    Object.assign(S, this.fresh(), { players, settings, kicked, gid: rid(8), phase: 'lobby' });
+    this.bots = {};
+    this.commit();
+  },
+  close() { this.S.phase = 'closed'; this.commit().then(() => this.stop('Game closed.')); },
+
+  // ---- clock ----
+  tick() {
+    const S = this.S;
+    if (!S) return;
+    const t = Date.now();
+    let changed = false;
+    if (S.phase === 'reveal' && t >= S.revealEnds) { S.phase = 'play'; S.killReadyAt = t + S.settings.killCd * 1000; S.sabReadyAt = t + 20000; changed = true; }
+    else if (S.phase === 'play' && S.sab && S.sab.endsAt && t >= S.sab.endsAt) { this.finish('hacker', 'firewall'); changed = true; }
+    else if (S.phase === 'meeting' && t >= S.meeting.endsAt) { this.endMeeting(); changed = true; }
+    else if (S.phase === 'result' && t >= S.result.endsAt) { this.afterResult(); changed = true; }
+    if (this.botBrain(t)) changed = true;
+    if (changed) this.commit();
+  },
+
+  // ---- practice bots ----
+  placeBots() {
+    for (const p of this.S.players) if (p.bot) {
+      const b = this.bots[p.pid] || (this.bots[p.pid] = {});
+      Object.assign(b, { pos: spawnPoint(p.seat), d: 1, m: 0, path: null, busyUntil: 0, next: Date.now() + 1500 + Math.random() * 3000, voteAt: 0, goal: null, fixAt: 0 });
+    }
+  },
+  botBrain(t) {
+    const S = this.S;
+    let changed = false;
+    const act = (pid, a) => { this.handle(pid, { ...a, gid: S.gid }); changed = true; };
+    for (const p of S.players) {
+      if (!p.bot) continue;
+      const b = this.bots[p.pid];
+      if (!b) continue;
+      const role = S.roles[p.pid], alive = S.life[p.pid] === 'alive';
+      if (S.phase === 'play') {
+        if (alive) {
+          const body = S.bodies.find(x => dist(b.pos, x) < VISION.crew);
+          if (body && role === 'defender') {
+            if (dist(b.pos, body) <= RANGE.report) { if (Math.random() < 0.15) act(p.pid, { t: 'report', body: body.pid }); continue; }
+            if (!b.goal || b.goal.k !== 'body') this.goBot(b, { k: 'body', x: body.x, y: body.y });
+            continue;
+          }
+          if (S.sab && role === 'defender') {
+            const f = FIXES[S.sab.kind];
+            if (dist(b.pos, f) <= RANGE.fix) { if (!b.fixAt) b.fixAt = t + 2500; if (t >= b.fixAt) { b.fixAt = 0; act(p.pid, { t: 'fix', kind: S.sab.kind }); } continue; }
+            if ((!b.goal || b.goal.k !== 'fix') && Math.random() < 0.03) this.goBot(b, { k: 'fix', x: f.x, y: f.y - 0.9 });
+          }
+          if (role === 'hacker' && t >= S.killReadyAt) {
+            const near = id => { const q = this.posOf(id); return q ? dist(q, b.pos) : 99; };
+            const prey = S.players.filter(q => q.pid !== p.pid && S.life[q.pid] === 'alive' && near(q.pid) <= RANGE.kill);
+            const witnesses = S.players.filter(q => q.pid !== p.pid && S.life[q.pid] === 'alive' && near(q.pid) <= 6);
+            if (prey.length && witnesses.length <= 1 && Math.random() < 0.12) { act(p.pid, { t: 'kill', target: prey[0].pid }); continue; }
+          }
+          if (role === 'hacker' && !S.sab && t >= S.sabReadyAt && Math.random() < 0.004) act(p.pid, { t: 'sabotage', kind: Math.random() < 0.5 ? 'lights' : 'firewall' });
+        }
+        if (b.path) continue;
+        if (b.goal && b.goal.k === 'task') {
+          if (t < b.busyUntil) continue;
+          const i = b.goal.i;
+          b.goal = null; b.busyUntil = 0; b.next = t + 800 + Math.random() * 2500;
+          act(p.pid, { t: 'task', i });
+          continue;
+        }
+        if (t < b.next) continue;
+        const open = (S.tasks[p.pid] || []).map((x, i) => ({ x, i })).filter(o => !o.x.done);
+        if (open.length) { const o = pick(open); const st = STATION[o.x.st]; this.goBot(b, { k: 'task', i: o.i, x: st.x, y: st.y + 0.9 }); }
+        else this.goBot(b, { k: 'wander', ...pick(ROOMS.map(r => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 + 1.2 }))) });
+        b.next = t + 3000;
+      } else if (S.phase === 'meeting' && alive && S.meeting.votes[p.pid] == null && t >= S.meeting.voteFrom) {
+        if (!b.voteAt) b.voteAt = t + 3000 + Math.random() * 15000;
+        if (t >= b.voteAt) {
+          const others = S.players.filter(x => x.pid !== p.pid && S.life[x.pid] === 'alive');
+          let v = 'skip';
+          if (role === 'hacker') { const d = others.filter(x => S.roles[x.pid] === 'defender'); if (d.length) v = pick(d).pid; }
+          else if (others.length && Math.random() > 0.35) v = pick(others).pid;
+          b.voteAt = 0;
+          act(p.pid, { t: 'vote', target: v });
+        }
+      }
+    }
+    return changed;
+  },
+  goBot(b, goal) { b.goal = goal; b.path = route(b.pos, goal); },
+  botStep() {
+    const S = this.S;
+    if (!S) return;
+    if (S.phase === 'play') {
+      const step = SPEED * 0.9 * 0.05;
+      for (const p of S.players) {
+        const b = p.bot && this.bots[p.pid];
+        if (!b) continue;
+        b.m = 0;
+        if (!b.path || !b.path.length) continue;
+        const wp = b.path[0];
+        const dx = wp.x - b.pos.x, dy = wp.y - b.pos.y, L = Math.hypot(dx, dy);
+        if (L <= step) {
+          b.pos = { x: wp.x, y: wp.y };
+          b.path.shift();
+          if (!b.path.length) { b.path = null; if (b.goal && b.goal.k === 'task') b.busyUntil = Date.now() + 5000 + Math.random() * 6000; else if (b.goal && b.goal.k !== 'fix' && b.goal.k !== 'body') b.goal = null; }
+        } else { b.pos = { x: b.pos.x + dx / L * step, y: b.pos.y + dy / L * step }; b.m = 1; if (Math.abs(dx) > 0.01) b.d = dx < 0 ? -1 : 1; }
+      }
+    }
+    this.botPresence();
+  },
+  botPresence() {
+    if (this.solo) return;
+    const S = this.S, bots = {};
+    if (inRound(S)) for (const p of S.players) {
+      const b = p.bot && this.bots[p.pid];
+      if (b && b.pos && S.life[p.pid] === 'alive') bots[p.pid] = [Math.round(b.pos.x * 100) / 100, Math.round(b.pos.y * 100) / 100, b.d, b.m];
+    }
+    const sig = JSON.stringify(bots), t = performance.now();
+    if (sig === this.lastBotPres || t - (this.lastBotAt || 0) < 66) return;
+    this.lastBotPres = sig; this.lastBotAt = t;
+    Net.send({ t: 'bots', bots });
+  },
+
+  // ---- outputs ----
+  publicView() {
+    const S = this.S, M = S.meeting;
+    const reveal = S.phase === 'end';
+    const players = S.players.map((p, i) => {
+      const l = S.life[p.pid];
+      const out = l === 'ejected' ? 'ejected' : (S.confirmed[p.pid] ? 'dead' : null);
+      return { pid: p.pid, name: p.name, bot: !!p.bot, seat: i, out, role: (reveal || l === 'ejected') ? (S.roles[p.pid] || null) : null };
+    });
+    return {
+      hs: this.hs, v: this.v, gid: S.gid, hostNow: Date.now(), phase: S.phase,
+      settings: { ...S.settings }, players,
+      pct: S.total ? Math.round(100 * S.progress / S.total) : 0,
+      bodies: S.bodies, spawn: S.spawn, revealEnds: S.phase === 'reveal' ? S.revealEnds : 0,
+      sab: S.sab ? { kind: S.sab.kind, endsAt: S.sab.endsAt } : null,
+      meeting: M ? { reason: M.reason, by: M.by, body: M.body, voteFrom: M.voteFrom, endsAt: M.endsAt, voted: Object.keys(M.votes) } : null,
+      result: S.result, end: S.end,
+    };
+  },
+  privateView(pid) {
+    const S = this.S, role = S.roles[pid] || null;
+    const v = {
+      gid: S.gid, role, life: S.life[pid] || null, tasks: S.tasks[pid] || [], meetingsLeft: S.meetingsLeft[pid] || 0,
+      vote: S.meeting ? (S.meeting.votes[pid] || null) : null, note: S.notes[pid] || null,
+    };
+    if (role === 'hacker') { v.killReadyAt = S.killReadyAt; v.sabReadyAt = S.sabReadyAt; }
+    return v;
+  },
+  async commit() {
+    this.dirty = true;
+    if (this.committing) return this.commitDone;
+    this.committing = true;
+    let release;
+    this.commitDone = new Promise(r => { release = r; });
+    await Promise.resolve();
+    while (this.dirty) {
+      this.dirty = false;
+      this.v++;
+      if (!this.solo) this.save();
+      const pub = this.publicView();
+      setPublic(pub, true);
+      if (this.solo) { setPrivate(JSON.parse(JSON.stringify(this.privateView(App.pid)))); continue; }
+      Net.send({ t: 'pub', pub });
+      // each phone only ever receives its own role and tasks; when anyone's change, everyone gets theirs,
+      // so who gets a message gives nothing away
+      const privs = this.S.players.filter(p => !p.bot).map(p => [p.pid, this.privateView(p.pid)]);
+      if (privs.some(([pid, priv]) => this.sentPriv[pid] !== JSON.stringify(priv))) {
+        for (const [pid, priv] of privs) { this.sentPriv[pid] = JSON.stringify(priv); Net.send({ t: 'priv', pid, priv }); }
+      }
+    }
+    this.committing = false;
+    release();
+  },
+};
+
+/* =========================================================================
+   Player side (every phone)
+   ========================================================================= */
+const Player = {
+  autoJoined: null,
+  onPublic(prev) {
+    const pub = App.pub;
+    if (!pub) return;
+    if (!prev || prev.gid !== pub.gid || prev.hs !== pub.hs) { App.priv = null; App.ui.revealed = false; App.ui.voteSel = null; }
+    // the host removed this phone from the lobby
+    if (prev && prev.gid === pub.gid && pub.phase === 'lobby' && prev.players.some(p => p.pid === App.pid) && !me() && !this.leaving) { App.removed = true; store.del('joined'); }
+    // rejoin by itself when the TV opens a new lobby
+    if (pub.phase === 'lobby' && !me() && Net.code && store.get('joined') === Net.code && App.name && this.autoJoined !== pub.gid) {
+      this.autoJoined = pub.gid;
+      this.join(App.name);
+    }
+  },
+  join(name) {
+    name = cleanName(name);
+    if (!name) return;
+    App.name = name; store.set('name', name); store.set('joined', Net.code);
+    this.leaving = false; App.removed = false;
+    Net.send({ t: 'join', name });
+  },
+  leave() { this.leaving = true; store.del('joined'); Net.send({ t: 'leave' }); },
+  send(a) {
+    if (Host.solo) { Host.handle(App.pid, { ...a, gid: Host.S.gid }); return; }
+    if (!App.pub) return;
+    const at = { x: Math.round(Local.pos.x * 100) / 100, y: Math.round(Local.pos.y * 100) / 100 };
+    Net.send({ t: 'act', a: { ...a, gid: App.pub.gid, at, mid: App.pub.meeting ? App.pub.meeting.voteFrom : undefined } });
+  },
+};
+
+/* =========================================================================
+   State intake
+   ========================================================================= */
+function setPublic(pub, fromHost) {
+  const prev = App.pub;
+  if (!fromHost) {
+    if (!pub) { App.pub = null; render(); return; }
+    if (prev && prev.hs === pub.hs && pub.v <= prev.v) return;
+  }
+  App.pub = pub;
+  if (!Host.active) Player.onPublic(prev);
+  phaseEffects(prev, pub);
+  render();
+}
+function setPrivate(priv) {
+  if (!priv || !App.pub || priv.gid !== App.pub.gid) return;
+  const had = App.priv;
+  App.priv = priv;
+  if (had && priv.note && (!had.note || priv.note.id !== had.note.id)) { toast(priv.note.text, priv.note.kind === 'bad' ? 'bad' : ''); say(priv.note.text, priv.note.kind === 'bad'); }
+  if (had && had.life === 'alive' && priv.life === 'dead') { buzz([300, 100, 300]); closeGame(); }
+  render();
+}
+function onMessage(m) {
+  if (Host.solo) return;
+  if (Host.active) { Host.onMessage(m); return; }
+  if (m.t === 'pub') { App.hostOnline = true; setPublic(m.pub, false); }
+  else if (m.t === 'priv') setPrivate(m.priv);
+  else if (m.t === 'pos' && typeof m.pid === 'string' && m.pid !== App.pid) App.live[m.pid] = m.p;
+  else if (m.t === 'bots' && m.bots && typeof m.bots === 'object') App.bots = m.bots;
+}
+function onConnected() { render(); }
+function phaseEffects(prev, pub) {
+  if (!prev || !pub) return;
+  if (prev.phase !== pub.phase) {
+    if (pub.phase !== 'play') { closeGame(); App.ui.map = false; App.ui.sabMenu = false; }
+    if (pub.phase === 'meeting') { App.ui.voteSel = null; buzz([200, 80, 200, 80, 200]); say(pub.meeting.reason === 'report' ? 'Body reported. War Room.' : 'Emergency War Room.', true); beep(220, 0.45, 3); }
+    if (pub.phase === 'end') beep(523, 0.3, 2);
+  }
+  if (pub.sab && !prev.sab) { buzz([120, 60, 120]); say(`Sabotage: ${FIXES[pub.sab.kind].name}.`, true); beep(880, 0.15, 3); }
+  if (prev.sab && !pub.sab && game && game.fix) closeGame();
+}
+
+/* =========================================================================
+   Boot
+   ========================================================================= */
+async function boot() {
+  App.name = store.get('name') || '';
+  buildMap();
+  App.role = 'player';
+  // this phone's player id comes from its own key (see Lock.pidFor), so nobody can take it over
+  try { if (window.crypto && crypto.subtle) App.pid = await Lock.pidFor((await Lock.pair('phonekey')).pub); } catch (e) {}
+  if (!validPid(App.pid)) App.pid = validPid(store.get('pid')) ? store.get('pid') : rid(10);
+  store.set('pid', App.pid);
+  App.booted = true;
+  const q = new URLSearchParams(location.search);
+  const tv = cleanCode(q.get('tv'));
+  if (validCode(tv)) {
+    const saved = store.get('host');
+    if (saved && saved.code === tv && saved.S && saved.S.phase !== 'closed') { hostGame(tv); return; }
+    // not a game this laptop is hosting (e.g. the TV's address was shared): join it as a player instead
+    q.delete('tv');
+    history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + '#' + tv);
+  }
+  const link = hashLink();
+  if (link) {
+    App.codeHint = link.code; App.fpHint = link.fp; App.fromLink = true;
+    // a reload in the middle of a game picks up where it was
+    if (store.get('joined') === link.code && App.name) { findGame(link.code, link.fp); return; }
+  }
+  render();
+}
+// #CODE, or #CODE.fingerprint from the TV's QR code
+const hashLink = () => {
+  let x = '';
+  try { x = decodeURIComponent(location.hash.slice(1)); } catch (e) {}
+  const [c, fp] = x.split('.');
+  const code = cleanCode(c);
+  return validCode(code) ? { code, fp: /^[0-9a-f]{12}$/.test(fp || '') ? fp : null } : null;
+};
+window.addEventListener('hashchange', () => { const l = hashLink(); if (l && !IS_TV && !Net.code) { App.codeHint = l.code; App.fpHint = l.fp; App.fromLink = true; App.draftCode = null; render(); } });
+// TV: open a lobby under a new code (or carry on with the game this laptop was hosting)
+function hostGame(code) {
+  code = validCode(code) ? code : newCode();
+  IS_TV = true;
+  App.tvNote = null;
+  const q = new URLSearchParams(location.search);
+  q.set('tv', code);
+  history.replaceState(null, '', location.pathname + '?' + q.toString());
+  Host.joinUrl = null;   // set once the TV's keys are ready, with their fingerprint
+  const saved = store.get('host');
+  const resume = saved && saved.code === code && saved.S && saved.S.phase !== 'closed' ? saved : null;
+  Net.startTV(code, resume && resume.peers);
+  Host.begin({ saved: resume });
+  render();
+}
+// phone: look for the TV with this code, then join its lobby
+function joinGame(code, name) {
+  App.name = name; store.set('name', name);
+  store.set('joined', code);
+  App.draftCode = null; App.codeError = null; App.removed = false;
+  Player.autoJoined = null; Player.leaving = false;
+  findGame(code, App.codeHint === code ? App.fpHint : null);
+}
+function findGame(code, fp) {
+  if (location.hash.slice(1).split('.')[0] !== code) history.replaceState(null, '', joinUrlFor(code, fp));
+  App.pub = null; App.priv = null; App.live = {}; App.bots = null;
+  Net.startPhone(code, fp);
+  clearTimeout(App.findTimer);
+  App.findTimer = setTimeout(render, 10500);
+}
+function leaveGame() {
+  if (me() && App.pub && App.pub.phase === 'lobby') Player.leave();
+  store.del('joined');
+  App.draftCode = Net.code || App.draftCode || '';   // keep the code to fix a typo
+  App.codeHint = null; App.fromLink = false;
+  App.pub = null; App.priv = null; App.live = {}; App.bots = null;
+  Net.stop();
+  history.replaceState(null, '', location.pathname + location.search);
+  render();
+  setTimeout(() => { const el = $('#code'); if (el) { el.focus(); el.select(); } }, 0);
+}
+function backToStart() {
+  IS_TV = false;
+  App.tvNote = null;
+  const q = new URLSearchParams(location.search);
+  q.delete('tv');
+  history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : ''));
+  render();
+}
+// a pasted "Code: BCD-FGH" becomes BCDFGH
+function codeFromText(text) {
+  const letters = String(text || '').toUpperCase().replace(/[^A-Z]/g, '');
+  const run = letters.length > 6 && letters.match(/[BCDFGHJKLMNPQRSTVWXZ]{6}/);
+  return run ? run[0] : letters.slice(0, 6);
+}
+const codeProblem = c => !c.length ? 'Type the 6-letter code from the TV.'
+  : c.length < 6 ? `That’s ${c.length} letter${c.length === 1 ? '' : 's'}. The code has 6.`
+  : 'Codes never use A, E, I, O, U or Y. Check the letters on the TV.';
+
+/* =========================================================================
+   Phone game: movement, proximity, HUD
+   ========================================================================= */
+const Local = {
+  pos: { x: 30, y: 11 }, dir: 1, moving: false, joy: { x: 0, y: 0 }, keys: new Set(), spawnSeen: -1, busy: false,
+  lastSent: 0, lastSig: '', drawn: {}, near: {},
+};
+const Game = {
+  layer: null, canvas: null, g: null, raf: 0, last: 0, els: {}, hudSig: '',
+  ensure() { if (!this.layer) this.build(); this.start(); return this.layer; },
+  build() {
+    const E = this.els;
+    this.canvas = h('canvas', { class: 'world', role: 'img', 'aria-label': 'Ship map with your crewmate in the middle' });
+    this.g = this.canvas.getContext('2d');
+    E.pct = h('i'); E.pctTxt = h('span', null, '0%');
+    E.taskbar = h('div', { class: 'taskbar', role: 'group', 'aria-label': 'Security Status' }, h('div', { class: 'lbl' }, h('span', null, 'Security Status'), E.pctTxt), h('div', { class: 'bar' }, E.pct));
+    E.mapBtn = h('button', { class: 'hud-btn', 'data-k': 'map', onclick: () => { App.ui.map = !App.ui.map; this.updateHud(true); } }, 'Map');
+    E.tasks = h('details', { class: 'tasks', open: true }, h('summary', null, 'Tasks'), h('ul'));
+    E.banner = h('div', { class: 'banner', hidden: true, 'aria-live': 'polite' });
+    E.ghost = h('div', { class: 'banner ghost', hidden: true }, 'You are a ghost. Stay silent. You can still finish tasks.');
+    E.knob = h('i');
+    E.joy = h('div', { class: 'joy', 'aria-hidden': 'true' }, E.knob);
+    const btn = (k, cls, ico, label, fn) => h('button', { class: 'act ' + cls, 'data-k': k, onclick: fn }, h('span', { class: 'ico', 'aria-hidden': 'true' }, ico), h('span', { class: 'txt' }, label));
+    E.use = btn('use', 'use', '✋', 'Use', () => doUse());
+    E.report = btn('report', 'report', '⚠', 'Report', () => doReport());
+    E.kill = btn('kill', 'kill', '☠', 'Compromise', () => doKill());
+    E.sab = btn('sab', 'sab', '⚡', 'Sabotage', () => { App.ui.sabMenu = !App.ui.sabMenu; this.updateHud(true); });
+    E.vent = btn('vent', 'vent', '⬇', 'Vent', () => doVent());
+    E.killCd = h('span', { class: 'cd', hidden: true }); E.kill.append(E.killCd);
+    E.sabCd = h('span', { class: 'cd', hidden: true }); E.sab.append(E.sabCd);
+    E.actions = h('div', { class: 'actions' }, E.vent, E.sab, E.report, E.kill, E.use);
+    E.sabMenu = h('div', { class: 'sabmenu', hidden: true, role: 'menu' },
+      h('p', { class: 'hack', style: 'font-weight:800' }, 'Sabotage'),
+      h('button', { class: 'btn small', 'data-k': 'sab-lights', role: 'menuitem', onclick: () => doSabotage('lights') }, 'Lights out'),
+      h('button', { class: 'btn small red', 'data-k': 'sab-firewall', role: 'menuitem', onclick: () => doSabotage('firewall') }, 'Firewall breach (45 s)'));
+    E.mapCanvas = h('canvas', { role: 'img', 'aria-label': 'Ship map' });
+    E.minimap = h('div', { class: 'minimap', hidden: true, onclick: () => { App.ui.map = false; this.updateHud(true); } }, E.mapCanvas);
+    this.layer = h('div', { class: 'game' }, this.canvas, h('div', { class: 'hud-top' }, E.taskbar, E.mapBtn), E.tasks, E.banner, E.ghost, E.joy, E.actions, E.sabMenu, E.minimap);
+    setupJoystick(E.joy, E.knob);
+  },
+  start() {
+    document.body.classList.add('ingame');
+    if (!this.raf) { this.last = performance.now(); this.raf = requestAnimationFrame(t => this.frame(t)); }
+  },
+  stop() { if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0; document.body.classList.remove('ingame'); },
+  updateHud(force) {
+    const pub = App.pub, priv = App.priv, E = this.els;
+    if (!pub || !priv || !E.pct) return;
+    E.pct.style.width = pub.pct + '%';
+    E.pctTxt.textContent = pub.pct + '%';
+    const hacker = priv.role === 'hacker', ghost = priv.life !== 'alive';
+    const sig = JSON.stringify([priv.tasks, priv.role, priv.life, pub.sab && pub.sab.kind]);
+    if (force || sig !== this.hudSig) {
+      this.hudSig = sig;
+      E.tasks.querySelector('ul').replaceChildren(...[
+        hacker ? h('li', { class: 'fake' }, 'Fake tasks (you’re the Hacker):') : null,
+        pub.sab ? h('li', { class: 'hack' }, FIXES[pub.sab.kind].fix) : null,
+        ...priv.tasks.map(t => { const s = STATION[t.st]; return h('li', { class: t.done ? 'done' : null }, `${ROOM[s.room].name}: ${TASKS[s.t].name}`); }),
+      ].filter(Boolean));
+      const done = priv.tasks.filter(t => t.done).length;
+      E.tasks.querySelector('summary').textContent = hacker ? 'Hacker · fake tasks' : `Tasks ${done}/${priv.tasks.length}`;
+    }
+    E.ghost.hidden = !ghost || pub.phase !== 'play';
+    E.kill.hidden = !hacker; E.sab.hidden = !hacker; E.vent.hidden = !hacker;
+    E.report.hidden = ghost;
+    E.minimap.hidden = !App.ui.map;
+    E.sabMenu.hidden = !(App.ui.sabMenu && hacker && !ghost);
+    if (App.ui.map) drawMinimap(E.mapCanvas);
+  },
+  frame(t) {
+    this.raf = requestAnimationFrame(tt => this.frame(tt));
+    const dt = Math.min(0.05, (t - this.last) / 1000);
+    this.last = t;
+    if (!this.layer || !this.layer.isConnected) { this.stop(); return; }
+    const pub = App.pub, priv = App.priv;
+    if (!pub || !priv) return;
+    const ghost = priv.life !== 'alive';
+    if (pub.spawn !== Local.spawnSeen) { Local.spawnSeen = pub.spawn; const s = spawnPoint((me() || {}).seat || 0); Local.pos = { x: s.x, y: s.y }; }
+    let vx = Local.joy.x, vy = Local.joy.y;
+    const K = Local.keys;
+    if (K.has('ArrowLeft') || K.has('a')) vx -= 1;
+    if (K.has('ArrowRight') || K.has('d')) vx += 1;
+    if (K.has('ArrowUp') || K.has('w')) vy -= 1;
+    if (K.has('ArrowDown') || K.has('s')) vy += 1;
+    const L = Math.hypot(vx, vy);
+    Local.moving = false;
+    if (L > 0.12 && pub.phase === 'play' && !Local.busy && !App.ui.map) {
+      const k = Math.min(1, L) / L, sp = SPEED * (ghost ? 1.25 : 1) * dt;
+      moveBy(Local.pos, vx * k * sp, vy * k * sp, ghost);
+      if (Math.abs(vx) > 0.05) Local.dir = vx < 0 ? -1 : 1;
+      Local.moving = true;
+    }
+    sendPosition(ghost);
+    const others = othersNow(pub);
+    computeNear(pub, priv, others);
+    updateButtons(pub, priv);
+    drawPhoneView(this.g, this.canvas, pub, priv, others, t);
+  },
+};
+function sendPosition(ghost) {
+  const t = performance.now();
+  const sig = ghost ? 'hide' : `${Local.pos.x.toFixed(2)},${Local.pos.y.toFixed(2)},${Local.dir},${Local.moving ? 1 : 0}`;
+  if ((sig === Local.lastSig && t - Local.lastSent < 1500) || t - Local.lastSent < 66) return;
+  Local.lastSig = sig; Local.lastSent = t;
+  if (Host.solo) return;
+  Net.send({ t: 'pos', p: ghost ? { hide: 1 } : { x: Math.round(Local.pos.x * 100) / 100, y: Math.round(Local.pos.y * 100) / 100, d: Local.dir, m: Local.moving ? 1 : 0 } });
+}
+// Everyone visible on the map right now, other than me (positions smoothed between updates).
+function othersNow(pub, key = '') {
+  const out = [];
+  for (const p of pub.players) {
+    if ((!key && p.pid === App.pid) || p.out) continue;
+    let l = null;
+    if (Host.active && p.bot) { const b = Host.bots[p.pid]; if (b && b.pos && Host.S.life[p.pid] === 'alive') l = { x: b.pos.x, y: b.pos.y, d: b.d, m: b.m }; }
+    else if (App.live[p.pid]) l = App.live[p.pid];
+    else if (p.bot && App.bots && Array.isArray(App.bots[p.pid])) { const v = App.bots[p.pid]; l = { x: v[0], y: v[1], d: v[2], m: v[3] }; }
+    if (!l || l.hide || typeof l.x !== 'number') continue;
+    let s = Local.drawn[key + p.pid];
+    if (!s || Math.hypot(s.x - l.x, s.y - l.y) > 4) s = Local.drawn[key + p.pid] = { x: l.x, y: l.y };
+    s.x += (l.x - s.x) * 0.35; s.y += (l.y - s.y) * 0.35;
+    out.push({ p, x: s.x, y: s.y, d: l.d || 1, m: l.m });
+  }
+  return out;
+}
+function visionOf(pub, priv) {
+  if (priv.life !== 'alive') return 99;
+  if (priv.role === 'hacker') return VISION.hacker;
+  return pub.sab && pub.sab.kind === 'lights' ? VISION.dark : VISION.crew;
+}
+function computeNear(pub, priv, others) {
+  const N = Local.near = {};
+  const P = Local.pos, alive = priv.life === 'alive';
+  if (pub.phase !== 'play') return;
+  if (pub.sab && alive && dist(P, FIXES[pub.sab.kind]) <= RANGE.fix) N.fix = pub.sab.kind;
+  priv.tasks.forEach((t, i) => { if (!t.done && N.task == null && dist(P, STATION[t.st]) <= RANGE.use) N.task = i; });
+  if (alive && priv.meetingsLeft > 0 && dist(P, TABLE) <= RANGE.table && !(pub.sab && pub.sab.kind === 'firewall')) N.table = true;
+  if (alive) { const b = pub.bodies.find(b2 => dist(P, b2) <= Math.min(RANGE.report, visionOf(pub, priv))); if (b) N.body = b.pid; }
+  if (alive && priv.role === 'hacker') {
+    let best = null;
+    for (const o of others) { const d = dist(P, o); if (d <= RANGE.kill && (!best || d < best.d)) best = { pid: o.p.pid, d }; }
+    if (best) N.kill = best.pid;
+    const v = VENTS.findIndex(v2 => dist(P, v2) <= RANGE.vent);
+    if (v >= 0) N.vent = v;
+  }
+}
+const setOnce = (el, prop, val) => { if (el[prop] !== val) el[prop] = val; };
+function updateButtons(pub, priv) {
+  const E = Game.els, N = Local.near, t = now();
+  setOnce(E.use.querySelector('.txt'), 'textContent', N.fix ? 'Fix' : N.task != null ? 'Use' : N.table ? 'Emergency' : 'Use');
+  setOnce(E.use, 'disabled', !(N.fix || N.task != null || N.table));
+  setOnce(E.report, 'disabled', !N.body);
+  if (priv.role === 'hacker') {
+    const kWait = Math.max(0, (priv.killReadyAt || 0) - t), sWait = Math.max(0, (priv.sabReadyAt || 0) - t);
+    setOnce(E.killCd, 'hidden', !(kWait > 0));
+    if (kWait > 0) setOnce(E.killCd, 'textContent', String(Math.ceil(kWait / 1000)));
+    setOnce(E.kill, 'disabled', !(N.kill && kWait <= 0));
+    setOnce(E.sabCd, 'hidden', !(sWait > 0));
+    if (sWait > 0) setOnce(E.sabCd, 'textContent', String(Math.ceil(sWait / 1000)));
+    setOnce(E.sab, 'disabled', !(sWait <= 0 && !pub.sab && priv.life === 'alive'));
+    setOnce(E.vent, 'disabled', N.vent == null);
+  }
+  const b = E.banner;
+  if (pub.phase === 'play' && pub.sab) {
+    const crit = pub.sab.kind === 'firewall';
+    setOnce(b, 'className', 'banner ' + (crit ? 'crit' : 'lights'));
+    setOnce(b, 'textContent', crit ? `FIREWALL BREACH ${mmss(pub.sab.endsAt - t)} · fix it in the Firewall Bay` : 'Lights out · fix them in the Power Room');
+    setOnce(b, 'hidden', false);
+  } else setOnce(b, 'hidden', true);
+}
+function setupJoystick(el, knob) {
+  let id = null, cx = 0, cy = 0;
+  const R = 55;
+  const move = e => {
+    const dx = e.clientX - cx, dy = e.clientY - cy, L = Math.hypot(dx, dy), k = L > R ? R / L : 1;
+    knob.style.transform = `translate(${dx * k}px, ${dy * k}px)`;
+    Local.joy = { x: dx * k / R, y: dy * k / R };
+  };
+  el.addEventListener('pointerdown', e => { id = e.pointerId; const r = el.getBoundingClientRect(); cx = r.left + r.width / 2; cy = r.top + r.height / 2; try { el.setPointerCapture(id); } catch (err) {} move(e); e.preventDefault(); });
+  el.addEventListener('pointermove', e => { if (e.pointerId === id) move(e); });
+  const end = e => { if (e.pointerId !== id) return; id = null; knob.style.transform = ''; Local.joy = { x: 0, y: 0 }; };
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+}
+document.addEventListener('keydown', e => {
+  if (!Game.raf || (e.target.closest && e.target.closest('input, select, textarea, .sheet, .overlay'))) return;
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'w', 'a', 's', 'd'].includes(k)) { Local.keys.add(k); e.preventDefault(); }
+  else if (k === 'e' || k === ' ') { doUse(); e.preventDefault(); }
+  else if (k === 'r') doReport();
+  else if (k === 'q') doKill();
+  else if (k === 'v') doVent();
+  else if (k === 'm') { App.ui.map = !App.ui.map; Game.updateHud(true); }
+});
+document.addEventListener('keyup', e => { const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; Local.keys.delete(k); });
+window.addEventListener('blur', () => Local.keys.clear());
+
+// ---- actions ----
+function doUse() {
+  const N = Local.near, priv = App.priv;
+  if (!priv || !App.pub || App.pub.phase !== 'play' || Local.busy) return;
+  if (N.fix) { const kind = N.fix; openGame(FIXES[kind].game, () => Player.send({ t: 'fix', kind }), { fix: true }); return; }
+  if (N.task != null) { const i = N.task, st = STATION[priv.tasks[i].st]; openGame(st.t, () => { Player.send({ t: 'task', i }); markDone(i); }); return; }
+  if (N.table) { if (confirmTap('button')) Player.send({ t: 'button' }); else toast('Tap Emergency again to call a War Room.'); }
+}
+function markDone(i) { if (App.priv && App.priv.tasks[i]) { App.priv.tasks[i].done = true; Game.updateHud(); } }
+function doReport() { const b = Local.near.body; if (b && App.pub && App.pub.phase === 'play') Player.send({ t: 'report', body: b }); }
+function doKill() {
+  const N = Local.near, priv = App.priv;
+  if (!N.kill || !priv || priv.role !== 'hacker' || now() < (priv.killReadyAt || 0)) return;
+  Player.send({ t: 'kill', target: N.kill });
+  priv.killReadyAt = now() + App.pub.settings.killCd * 1000; // local feedback until the TV confirms
+}
+function doVent() {
+  const i = Local.near.vent;
+  if (i == null || !App.priv || App.priv.role !== 'hacker') return;
+  const group = VENTS.filter(v => v.g === VENTS[i].g);
+  const next = group[(group.indexOf(VENTS[i]) + 1) % group.length];
+  Local.pos = { x: next.x, y: next.y + 0.8 };
+  if (!canStand(Local.pos.x, Local.pos.y)) Local.pos = { x: next.x, y: next.y - 0.8 };
+}
+function doSabotage(kind) { App.ui.sabMenu = false; Game.updateHud(true); Player.send({ t: 'sabotage', kind }); }
+function confirmTap(k) {
+  if (App.ui.confirm === k) { App.ui.confirm = null; return true; }
+  App.ui.confirm = k;
+  setTimeout(() => { if (App.ui.confirm === k) { App.ui.confirm = null; if (Host.active && !Host.solo) render(); } }, 2500);
+  return false;
+}
+
+// ---- drawing the phone view ----
+function drawPhoneView(g, canvas, pub, priv, others, t) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  if (!W || !H) return;
+  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const scale = Math.min(W, H) / 8.5;
+  const cx = Local.pos.x, cy = Local.pos.y;
+  const X = x => (x - cx) * scale + W / 2, Y = y => (y - cy) * scale + H / 2;
+  g.fillStyle = '#04060b'; g.fillRect(0, 0, W, H);
+  g.drawImage(MAPIMG, (cx - W / 2 / scale) * MAP_PX, (cy - H / 2 / scale) * MAP_PX, W / scale * MAP_PX, H / scale * MAP_PX, 0, 0, W, H);
+  const vis = visionOf(pub, priv);
+  const ghost = priv.life !== 'alive';
+  const pulse = 0.5 + 0.5 * Math.sin(t / 250);
+  priv.tasks.forEach(tk => {
+    if (tk.done) return;
+    const s = STATION[tk.st];
+    g.strokeStyle = `rgba(255, 220, 60, ${0.5 + 0.5 * pulse})`; g.lineWidth = 3;
+    g.strokeRect(X(s.x - 0.7), Y(s.y - 0.6), 1.4 * scale, 1.2 * scale);
+  });
+  if (pub.sab) { const f = FIXES[pub.sab.kind]; g.strokeStyle = `rgba(255, 60, 80, ${0.4 + 0.6 * pulse})`; g.lineWidth = 4; g.strokeRect(X(f.x - 0.7), Y(f.y - 0.7), 1.4 * scale, 1.4 * scale); }
+  const items = [];
+  for (const b of pub.bodies) if (ghost || dist(b, Local.pos) <= vis) items.push({ y: b.y, draw: () => drawBody(g, X(b.x), Y(b.y), scale * 1.3, colorOf(playerBy(b.pid))) });
+  for (const o of others) {
+    if (!ghost && dist(o, Local.pos) > vis) continue;
+    const bob = o.m ? Math.sin(t / 90) * scale * 0.04 : 0;
+    items.push({ y: o.y, draw: () => { drawCrew(g, X(o.x), Y(o.y), scale * 1.3, colorOf(o.p), o.d, { bob }); nameTag(g, X(o.x), Y(o.y) - scale * 1.35, o.p.name, Math.max(12, scale * 0.36)); } });
+  }
+  const mine = me();
+  items.push({ y: Local.pos.y, draw: () => {
+    drawCrew(g, X(cx), Y(cy), scale * 1.3, colorOf(mine), Local.dir, { bob: Local.moving ? Math.sin(t / 90) * scale * 0.04 : 0, alpha: ghost ? 0.5 : 1 });
+    nameTag(g, X(cx), Y(cy) - scale * 1.35, (mine || {}).name || 'You', Math.max(12, scale * 0.36), priv.role === 'hacker' ? '#ff6476' : '#fff');
+  } });
+  items.sort((a, b) => a.y - b.y).forEach(i => i.draw());
+  if (!ghost) {
+    const r = vis * scale;
+    const grad = g.createRadialGradient(W / 2, H / 2, r * 0.72, W / 2, H / 2, r);
+    grad.addColorStop(0, 'rgba(2,4,9,0)'); grad.addColorStop(1, 'rgba(2,4,9,0.94)');
+    g.fillStyle = grad; g.fillRect(0, 0, W, H);
+  }
+}
+function drawMinimap(canvas) {
+  const W = canvas.clientWidth || 600, H = canvas.clientHeight || 400, dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  const g = canvas.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const s = Math.min(W / MAP_W, (H - 24) / MAP_H), ox = (W - MAP_W * s) / 2, oy = (H - 24 - MAP_H * s) / 2;
+  g.drawImage(MAPIMG, ox, oy, MAP_W * s, MAP_H * s);
+  const priv = App.priv, pub = App.pub;
+  if (priv) for (const tk of priv.tasks) if (!tk.done) { const st = STATION[tk.st]; g.fillStyle = '#ffdc3c'; g.beginPath(); g.arc(ox + st.x * s, oy + st.y * s, 6, 0, Math.PI * 2); g.fill(); }
+  if (pub && pub.sab) { const f = FIXES[pub.sab.kind]; g.fillStyle = '#ff3c50'; g.beginPath(); g.arc(ox + f.x * s, oy + f.y * s, 9, 0, Math.PI * 2); g.fill(); }
+  g.fillStyle = colorOf(me()); g.strokeStyle = '#fff'; g.lineWidth = 3;
+  g.beginPath(); g.arc(ox + Local.pos.x * s, oy + Local.pos.y * s, 8, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.fillStyle = '#fff'; g.font = `700 14px ${CANVAS_FONT}`; g.textAlign = 'center'; g.fillText('Yellow = your tasks · tap to close', W / 2, H - 6);
+}
+
+/* =========================================================================
+   Rendering (screens + overlays)
+   ========================================================================= */
+function render() {
+  const root = $('#app');
+  if (!root || !App.booted) return;
+  const ae = document.activeElement;
+  const focusKey = ae && ae.dataset ? ae.dataset.k : null;
+  let caret = null;
+  try { if (ae && typeof ae.selectionStart === 'number') caret = [ae.selectionStart, ae.selectionEnd]; } catch (e) {}
+  const pub = App.pub, priv = App.priv;
+  if (Host.active && !Host.solo) {
+    Game.stop();
+    root.replaceChildren(renderTV());
+    renderOverlay(null);
+  } else if (inRound(pub) && me() && priv) {
+    const layer = Game.ensure();
+    if (root.firstChild !== layer) root.replaceChildren(layer);
+    Game.updateHud();
+    renderOverlay(phoneOverlay(pub, priv));
+  } else {
+    Game.stop();
+    root.replaceChildren(renderMenus());
+    renderOverlay(null);
+  }
+  if (focusKey) {
+    const el = document.querySelector(`[data-k="${CSS.escape(focusKey)}"]`);
+    if (el && el !== document.activeElement) { el.focus({ preventScroll: true }); if (caret && el.setSelectionRange) try { el.setSelectionRange(caret[0], caret[1]); } catch (e) {} }
+  }
+  let conn = $('#conn');
+  let lostText = null;
+  if (IS_TV && Host.active && !Host.solo && !Net.open) lostText = App.offline ? 'Not connected: players can’t join yet. Check this laptop’s internet, or use a phone hotspot.' : Net.everOpen ? 'Reconnecting to the game network…' : 'Connecting to the game network…';
+  else if (!IS_TV && Net.everOpen && !Net.open && !Host.solo && !(App.pub && App.pub.phase === 'closed')) lostText = 'Reconnecting to the TV…';
+  if (lostText && !conn) document.body.append(h('div', { id: 'conn', class: 'conn', role: 'status' }, lostText));
+  else if (lostText && conn.textContent !== lostText) conn.textContent = lostText;
+  if (!lostText && conn) conn.remove();
+}
+function renderOverlay(node) {
+  const old = $('#overlay');
+  if (!node) { if (old) old.remove(); return; }
+  node.id = 'overlay';
+  if (old) old.replaceWith(node); else document.body.append(node);
+}
+setInterval(() => { for (const el of document.querySelectorAll('[data-until]')) el.textContent = mmss(Number(el.dataset.until) - now()); }, 250);
+const until = ts => h('span', { 'data-until': String(ts) }, mmss(ts - now()));
+function rules() {
+  return h('details', { class: 'rules' }, h('summary', null, 'How to play'),
+    h('ul', null,
+      h('li', null, 'Move with the joystick (or W A S D). Walk to the glowing yellow consoles on your task list and press Use.'),
+      h('li', null, 'One player is secretly the Hacker. Defenders win by finishing every task or voting the Hacker out.'),
+      h('li', null, 'The Hacker fakes tasks, sabotages, travels through vents and compromises Defenders up close.'),
+      h('li', null, 'Find a body? Press Report. Suspicious? Press the emergency button on the War Room table.'),
+      h('li', null, 'In the War Room, talk it out in the lounge, then vote on your phone.'),
+      h('li', null, 'Compromised players become ghosts: stay silent, but keep doing tasks.')));
+}
+
+/* ---------- menus ---------- */
+function renderOffline() {
+  const secure = !!(window.crypto && crypto.subtle);
+  return h('main', { class: 'screen' },
+    h('p', { class: 'brand' }, 'Cyber Defenders'),
+    h('h1', { class: 'title' }, 'Can’t reach the game'),
+    h('div', { class: 'card' },
+      h('p', null, secure ? 'This phone can’t reach the game network. Check that it’s online. Some office Wi-Fi blocks it: switching to mobile data usually works.' : 'Open this page from its https:// link to play.'),
+      h('button', { class: 'btn primary', 'data-k': 'retry', onclick: () => location.reload() }, 'Try again'),
+      h('button', { class: 'btn ghost', 'data-k': 'change', onclick: leaveGame }, 'Change code'),
+      h('button', { class: 'btn ghost', 'data-k': 'solo', onclick: soloHere }, 'Practice solo (you + 4 bots)')),
+    rules());
+}
+function renderLanding() {
+  const okHint = 'The 6 letters on the TV. No account needed.';
+  const hint = h('p', { id: 'code-hint', class: App.codeError ? 'field-err' : 'muted', style: 'font-size:15px' }, App.codeError || okHint);
+  const code = h('input', { type: 'text', id: 'code', 'data-k': 'code', class: 'code-in', maxlength: '40', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', enterkeyhint: 'next',
+    'aria-describedby': 'code-hint', 'aria-invalid': App.codeError ? 'true' : null,
+    value: App.draftCode != null ? App.draftCode : (App.codeHint || ''),
+    oninput: e => {
+      const v = codeFromText(e.target.value);
+      if (e.target.value !== v) e.target.value = v;
+      App.draftCode = v;
+      if (App.codeError) { App.codeError = null; hint.className = 'muted'; hint.textContent = okHint; code.removeAttribute('aria-invalid'); }
+    } });
+  const name = h('input', { type: 'text', id: 'name', 'data-k': 'name', maxlength: '14', autocomplete: 'nickname', value: App.draftName != null ? App.draftName : (App.name || ''), oninput: e => { App.draftName = e.target.value; } });
+  return h('main', { class: 'screen' },
+    h('p', { class: 'brand' }, 'Cyber Defenders'),
+    h('h1', { class: 'title' }, 'There’s a hacker among us.'),
+    h('form', { class: 'card', onsubmit: e => {
+      e.preventDefault();
+      const c = cleanCode(code.value), n = cleanName(name.value);
+      if (!validCode(c)) { App.codeError = codeProblem(c); App.draftCode = c; render(); const el = $('#code'); if (el) el.focus(); return; }
+      if (!n) { name.focus(); toast('Type your name.'); return; }
+      joinGame(c, n);
+    } },
+      h('h2', null, 'Join a game'),
+      h('label', { for: 'code', class: 'label' }, 'Game code'),
+      code,
+      hint,
+      h('label', { for: 'name', class: 'label' }, 'Your name'),
+      name,
+      h('button', { class: 'btn primary', type: 'submit', 'data-k': 'join' }, 'Join')),
+    // players who came from the QR code don't need the TV button
+    App.fromLink ? null : h('div', { class: 'card' },
+      h('h2', null, 'Setting up the lounge TV?'),
+      h('p', null, 'Open this page on the laptop connected to the TV, then press:'),
+      h('button', { class: 'btn', 'data-k': 'host', onclick: () => hostGame() }, 'Host a game on this screen')),
+    h('button', { class: 'btn ghost', 'data-k': 'solo', onclick: soloHere }, 'Practice solo (you + 4 bots)'),
+    rules());
+}
+function renderMenus() {
+  const pub = App.pub, mine = me();
+  const wrap = h('main', { class: 'screen' }, h('p', { class: 'brand' }, 'Cyber Defenders'));
+  const add = (...kids) => wrap.append(...kids.filter(Boolean));
+  if (IS_TV) {
+    const moved = App.tvNote && App.tvNote.kind === 'replaced';
+    wrap.append(h('h1', { class: 'title' }, moved ? 'This game moved to another tab' : 'Game closed'),
+      h('div', { class: 'card' },
+        h('p', null, moved ? 'The game is now running in another tab or window on this laptop: use that one. Or host a new game here (it gets a new code).' : 'Host a new game when you’re ready to play again. It gets a new code.'),
+        h('button', { class: 'btn primary', 'data-k': 'newlobby', onclick: () => hostGame() }, 'Host a new game'),
+        h('button', { class: 'btn ghost', 'data-k': 'tostart', onclick: backToStart }, 'Back to the start page')));
+    return wrap;
+  }
+  if (!Net.code) return renderLanding();
+  if (App.offline && !Net.everOpen) return renderOffline();
+  const codeChip = h('span', { class: 'code-chip' }, Net.code);
+  const change = h('button', { class: 'btn ghost', 'data-k': 'change', onclick: leaveGame }, 'Change code');
+  if (!Net.found) {
+    const slow = Date.now() - Net.startedAt > 10000, reach = Net.upLinks().length > 0;
+    wrap.append(h('h1', { class: 'title' }, 'Game ', codeChip),
+      h('div', { class: 'card', role: 'status' },
+        h('p', null, !slow ? 'Finding the game…' : reach ? `No TV has answered for code ${Net.code} yet.` : 'Still trying to reach the game network…'),
+        slow ? h('p', { class: 'muted' }, reach
+          ? 'Check the code on the TV, and that the game is still open there. On office Wi-Fi? Try mobile data: the TV may be on a network this phone can’t reach. This page keeps looking by itself.'
+          : 'If this takes long, switch this phone to mobile data. This page keeps trying by itself.') : null),
+      change, rules());
+    return wrap;
+  }
+  if (!pub || pub.phase === 'closed') {
+    wrap.append(h('h1', { class: 'title' }, pub ? 'Game closed' : 'Waiting for the TV'),
+      h('div', { class: 'card' },
+        h('p', null, pub ? 'The TV closed this game. If it hosts a new one, type the new code.' : 'This page updates by itself as soon as the TV answers.'),
+        h('button', { class: 'btn primary', 'data-k': 'change', onclick: leaveGame }, 'Join another game')),
+      rules());
+    return wrap;
+  }
+  const lostTV = !Net.open ? h('div', { class: 'card', role: 'status' },
+    h('p', null, 'Lost contact with the TV. Keep this page open: it reconnects by itself.'),
+    Date.now() - Net.heardAt > 60000 ? h('button', { class: 'btn ghost', 'data-k': 'change2', onclick: leaveGame }, 'Join a different game') : null) : null;
+  if (pub.phase === 'lobby') {
+    if (mine) {
+      add(lostTV, h('div', { class: 'card' },
+        h('h1', { class: 'title', style: 'font-size:34px' }, 'You’re in!'),
+        h('p', null, 'Game ', codeChip, '. Waiting for the host to start. Keep this page open. Turn your phone sideways for a bigger view.')),
+        h('div', { class: 'card' }, h('h2', null, `Crew (${pub.players.length}/${MAX_PLAYERS})`),
+          h('div', { class: 'crew-row' }, pub.players.map(p => h('div', { class: 'crew' + (p.pid === App.pid ? ' me' : '') }, crewSVG(colorOf(p)), h('span', null, p.name), p.pid === App.pid ? h('span', { class: 'you' }, 'YOU') : null)))),
+        h('button', { class: 'btn ghost', 'data-k': 'leave', onclick: () => Player.leave() }, 'Leave'));
+    } else {
+      // keep what was typed: the form is redrawn whenever someone else joins
+      const input = h('input', { type: 'text', id: 'name', 'data-k': 'name', maxlength: '14', autocomplete: 'nickname', value: App.draftName != null ? App.draftName : (App.name || ''), oninput: e => { App.draftName = e.target.value; } });
+      add(lostTV, h('form', { class: 'card', onsubmit: e => { e.preventDefault(); const v = cleanName(input.value); if (!v) { input.focus(); toast('Type a name first.'); return; } Player.autoJoined = pub.gid; App.removed = false; Player.join(v); } },
+        h('h1', { class: 'title', style: 'font-size:34px' }, 'Join the crew'),
+        App.removed ? h('p', { class: 'warn', role: 'status' }, 'The host removed you from this game. Join again only if they say so.') : null,
+        h('p', null, 'Game ', codeChip),
+        h('label', { for: 'name', class: 'label' }, 'Your name'),
+        input,
+        h('button', { class: 'btn primary', type: 'submit', 'data-k': 'join' }, 'Join')), change);
+    }
+    wrap.append(rules());
+    return wrap;
+  }
+  if (inRound(pub) && mine && !App.priv) { add(lostTV, h('div', { class: 'card' }, h('p', null, 'Getting your secret role from the TV…'))); return wrap; }
+  wrap.append(h('h1', { class: 'title' }, 'A round is in progress'),
+    h('div', { class: 'card' }, h('p', null, 'You can join when the host goes back to the lobby. Watch the cameras on the TV for now.')), change);
+  return wrap;
+}
+
+/* ---------- phone overlays ---------- */
+function lineup(players, opt = {}) { return h('div', { class: 'lineup' }, players.filter(Boolean).map(p => crewSVG(colorOf(p), { out: opt.markOut && p.out }))); }
+function phoneOverlay(pub, priv) {
+  if (pub.phase === 'reveal') {
+    if (!App.ui.revealed) return h('div', { class: 'overlay' }, h('div', { class: 'inner' },
+      h('p', { class: 'shh' }, 'Shhhhh!'),
+      h('p', { class: 'sub' }, 'Your secret role is ready. Shield your screen.'),
+      h('button', { class: 'btn primary', 'data-k': 'reveal', style: 'max-width:340px', onclick: () => { App.ui.revealed = true; render(); } }, 'Reveal my role')));
+    const hacker = priv.role === 'hacker';
+    return h('div', { class: 'overlay' }, h('div', { class: 'inner' },
+      h('p', { class: 'big ' + (hacker ? 'hack' : 'def') }, hacker ? 'Hacker' : 'Defender'),
+      h('p', { class: 'sub' }, hacker ? 'Compromise Defenders without getting caught. Fake your tasks.' : 'There is 1 Hacker among us. Do your tasks and find them.'),
+      hacker ? lineup([me()]) : lineup(pub.players),
+      h('p', { class: 'muted' }, 'The round starts in ', until(pub.revealEnds), '.')));
+  }
+  if (pub.phase === 'meeting' && pub.meeting) return meetingPanel(pub, priv, false);
+  if (pub.phase === 'result' && pub.result) return resultPanel(pub, false);
+  if (pub.phase === 'end' && pub.end) {
+    const won = (pub.end.winner === 'hacker') === (priv.role === 'hacker');
+    const winners = pub.players.filter(p => (p.role === 'hacker') === (pub.end.winner === 'hacker'));
+    return h('div', { class: 'overlay' }, h('div', { class: 'inner' },
+      h('p', { class: 'big ' + (won ? 'def' : 'hack') }, won ? 'Victory' : 'Defeat'),
+      h('p', { class: 'sub' }, endLine(pub)),
+      lineup(winners),
+      h('p', { class: 'muted' }, `The Hacker was ${(pub.players.find(p => p.role === 'hacker') || {}).name || '?'}.`),
+      Host.solo
+        ? h('div', { class: 'row', style: 'width:100%;max-width:440px' },
+          h('button', { class: 'btn primary', 'data-k': 'again', onclick: () => Host.start() }, 'Play again'),
+          h('button', { class: 'btn ghost', 'data-k': 'exit', onclick: () => Host.stop() }, 'Exit'))
+        : h('p', { class: 'muted' }, 'The host can start another round from the TV.')));
+  }
+  return null;
+}
+function meetingWhy(pub) {
+  const M = pub.meeting;
+  return M.reason === 'report' ? `${nameOf(M.by)} found ${nameOf(M.body)}’s body.` : `${nameOf(M.by)} called an emergency War Room.`;
+}
+function meetingPanel(pub, priv, tv) {
+  const M = pub.meeting, t = now();
+  const voting = t >= M.voteFrom;
+  const alive = !!priv && priv.life === 'alive';
+  const voted = new Set(M.voted);
+  const sel = App.ui.voteSel;
+  const canVote = !tv && alive && voting && !priv.vote;
+  const tile = p => {
+    const out = !!p.out;
+    const attrs = { class: 'voter' + (out ? ' out' : '') + (!tv && p.pid === App.pid ? ' me' : ''), 'data-k': 'v-' + p.pid };
+    const kids = [crewSVG(colorOf(p), { out }), h('span', { class: 'nm' }, p.name), voted.has(p.pid) ? h('span', { class: 'stamp' }, 'I voted') : null];
+    if (canVote && !out && p.pid !== App.pid) return h('button', { ...attrs, 'aria-pressed': sel === p.pid ? 'true' : 'false', onclick: () => { App.ui.voteSel = p.pid; render(); } }, kids);
+    return h('div', attrs, kids);
+  };
+  const panel = h('div', { class: 'meeting', role: 'group', 'aria-label': 'War Room vote' },
+    h('h2', null, 'Who is the Hacker?'),
+    h('p', { class: 'why' }, meetingWhy(pub)),
+    h('p', { class: 'timer' }, voting ? 'Voting ends in ' : 'Discuss! Voting begins in ', until(voting ? M.endsAt : M.voteFrom)),
+    h('div', { class: 'voters' }, pub.players.map(tile)));
+  if (!tv) {
+    if (!alive) panel.append(h('p', { class: 'why' }, 'You’re a ghost. Stay silent: you can’t vote.'));
+    else if (priv.vote) panel.append(h('p', { class: 'why' }, priv.vote === 'skip' ? 'You skipped.' : `You voted for ${nameOf(priv.vote)}.`));
+    else if (voting) panel.append(h('div', { class: 'row' },
+      h('button', { class: 'btn', 'data-k': 'skip', 'aria-pressed': sel === 'skip' ? 'true' : 'false', onclick: () => { App.ui.voteSel = 'skip'; render(); } }, 'Skip vote'),
+      h('button', { class: 'btn primary', 'data-k': 'lock', disabled: !sel, onclick: () => { const v = App.ui.voteSel; App.ui.voteSel = null; Player.send({ t: 'vote', target: v }); App.priv.vote = v; render(); } },
+        sel ? (sel === 'skip' ? 'Confirm: skip' : `Confirm: ${nameOf(sel)}`) : 'Pick a player')));
+    else panel.append(h('p', { class: 'why' }, 'Voting opens when the timer runs out.'));
+  }
+  return h('div', { class: tv ? 'takeover' : 'overlay' }, h('div', { class: 'inner' }, h('p', { class: 'big hack', style: 'font-size:clamp(34px,8vw,96px)' }, 'War Room'), panel));
+}
+function resultText(pub) {
+  const r = pub.result;
+  if (r.ej) return { line: `${nameOf(r.ej)} was ${r.wasHacker ? '' : 'not '}the Hacker.`, sub: r.wasHacker ? '0 Hackers remain.' : '1 Hacker remains.', p: playerBy(r.ej) };
+  return { line: 'No one was ejected.', sub: r.votes === 0 ? 'Nobody voted.' : r.tie ? 'The vote was tied.' : 'Skipped.', p: null };
+}
+function resultPanel(pub, tv) {
+  const t = resultText(pub);
+  return h('div', { class: tv ? 'takeover' : 'overlay', style: 'background:radial-gradient(circle at 50% 40%, #0b1424, #000 70%)' }, h('div', { class: 'inner' },
+    t.p ? h('div', { class: 'lineup' }, crewSVG(colorOf(t.p))) : null,
+    h('p', { class: 'big', style: 'font-size:clamp(30px,7vw,110px)' }, t.line),
+    h('p', { class: 'sub muted' }, t.sub),
+    pub.result.ranked.length ? h('p', { class: tv ? 'note' : 'muted' }, pub.result.ranked.map(([pid, n]) => `${nameOf(pid)} ${n}`).join(' · ') + (pub.result.skip ? ` · Skip ${pub.result.skip}` : '')) : null));
+}
+function endLine(pub) {
+  return { tasks: 'Defenders finished every task.', ejected: 'The Hacker was voted out.', parity: 'The Hacker took over the ship.', firewall: 'The firewall breach wasn’t stopped in time.' }[pub.end.reason] || '';
+}
+
+/* =========================================================================
+   TV (host)
+   ========================================================================= */
+const TV = { layer: null, cams: [], raf: 0, statusEl: null };
+function renderTV() {
+  const pub = App.pub, S = Host.S;
+  if (!pub) return h('div');
+  const bar = h('div', { class: 'tvbar' },
+    h('p', { class: 'brand' }, 'Cyber Defenders · TV'),
+    h('span', { class: 'spacer' }),
+    h('button', { class: 'btn small ghost', 'data-k': 'sound', 'aria-pressed': App.ui.sound ? 'true' : 'false', onclick: () => { App.ui.sound = !App.ui.sound; if (App.ui.sound) beep(660, 0.12); render(); } }, App.ui.sound ? 'Sound on' : 'Sound off'),
+    pub.phase !== 'lobby' ? h('button', { class: 'btn small ghost', 'data-k': 'tolobby', onclick: () => { if (confirmTap('tolobby')) Host.backToLobby(); else render(); } }, App.ui.confirm === 'tolobby' ? 'Tap again to end round' : 'End round') : null,
+    h('button', { class: 'btn small ghost', 'data-k': 'closegame', onclick: () => { if (confirmTap('close')) Host.close(); else render(); } }, App.ui.confirm === 'close' ? 'Tap again to close' : 'Close game'));
+  if (pub.phase === 'lobby') { stopCams(); return h('main', { class: 'tvwrap' }, bar, renderTVLobby(pub, S), h('p', { class: 'foot' }, 'Roles stay on phones. This screen never shows who the Hacker is. Keep this page open while you play.')); }
+  return h('div', null,
+    h('main', { class: 'tvwrap' }, bar, camGrid(pub), h('p', { class: 'foot' }, 'Security cameras are live. Vote on your phone when a War Room is called.')),
+    tvTakeover(pub));
+}
+const shortAddress = () => (location.host + location.pathname).replace(/\/index\.html$/, '').replace(/\/$/, '');
+function qrImg() {
+  if (!Host.joinUrl || typeof window.qrcode !== 'function') return null;
+  try { const q = window.qrcode(0, 'M'); q.addData(Host.joinUrl); q.make(); return h('img', { src: q.createDataURL(8, 2), alt: 'QR code to join the game' }); } catch (e) { return null; }
+}
+function renderTVLobby(pub, S) {
+  const n = pub.players.length;
+  const sel = (k, opts, label, unit) => h('label', null, label,
+    h('select', { 'data-k': 'set-' + k, onchange: e => Host.setSetting(k, Number(e.target.value)) }, opts.map(o => h('option', { value: String(o), selected: S.settings[k] === o ? true : null }, `${o}${unit}`))));
+  const qr = qrImg();
+  return h('div', { class: 'lobby' },
+    h('section', { style: 'display:grid;gap:2vh' },
+      h('h1', null, 'Cyber Defenders'),
+      h('p', { class: 'def', style: 'font-size:clamp(18px,2vw,36px);font-weight:800' }, 'There’s a hacker among us.'),
+      h('div', { class: 'code-row' },
+        qr ? h('div', { class: 'qr' }, qr) : null,
+        h('div', { style: 'display:grid;gap:1vh;min-width:0' }, h('p', { class: 'label', style: 'font-size:clamp(14px,1.3vw,24px)' }, 'Game code'),
+          h('p', { class: 'code-big', 'data-code': Net.code, 'aria-label': 'Game code ' + [...(Net.code || '')].join(' ') }, Net.code))),
+      h('p', { class: 'join-url' }, shortAddress()),
+      h('p', { class: 'muted', style: 'font-size:clamp(15px,1.3vw,24px)' }, 'Scan the QR code, or open the address and type the code. Wi-Fi or mobile data, no account.'),
+      h('p', { class: (Net.open && Net.upCount > 1) ? 'muted' : 'warn', style: 'font-size:clamp(13px,1.1vw,20px);font-weight:700' },
+        !Net.open ? (App.offline ? 'Not connected: players can’t join yet. Check this laptop’s internet, or use a phone hotspot.' : 'Connecting to the game network…')
+          : `Game network: connected (${Net.upCount} of ${RELAYS.length} relays)` + (Net.upCount === 1 ? '. It works, but keep a phone hotspot ready as a backup.' : ''))),
+    h('section', { style: 'display:grid;gap:2vh' },
+      h('h2', { style: 'font-size:clamp(22px,2.4vw,44px)' }, `Crew ${n}/${MAX_PLAYERS}`),
+      n ? h('div', { class: 'crew-row', style: 'justify-content:flex-start' }, pub.players.map(p => h('div', { class: 'crew' }, crewSVG(colorOf(p)), h('span', null, p.name),
+        h('button', { class: 'btn small ghost', 'data-k': 'rm-' + p.pid, 'aria-label': `Remove ${p.name}`, onclick: () => Host.remove(p.pid) }, 'Remove'))))
+        : h('p', { class: 'muted' }, 'Waiting for the crew to scan the code…'),
+      h('div', { class: 'settings' },
+        sel('killCd', [15, 20, 25, 30, 45], 'Compromise cooldown', ' s'),
+        sel('disc', [0, 15, 30, 45], 'Discussion time', ' s'),
+        sel('vote', [30, 60, 90, 120], 'Voting time', ' s'),
+        sel('tasks', [3, 4, 5, 6], 'Tasks per player', ''),
+        sel('meetings', [1, 2, 3], 'Emergency meetings each', '')),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn', 'data-k': 'addbot', disabled: n >= MAX_PLAYERS, onclick: () => Host.addBot() }, 'Add practice bot'),
+        h('button', { class: 'btn primary', 'data-k': 'start', disabled: n < MIN_PLAYERS, onclick: () => Host.start() }, n < MIN_PLAYERS ? `Need ${MIN_PLAYERS - n} more` : 'Start game')),
+      h('p', { class: 'muted' }, '1 Hacker is chosen at random. Bots fill empty seats for practice.')));
+}
+function camGrid(pub) {
+  if (!TV.layer) {
+    TV.cams = CAMS.map((c, i) => { const cv = h('canvas', { role: 'img', 'aria-label': `Camera ${i + 1}: ${c.name}` }); return { c, cv, el: h('div', { class: 'cam' }, cv, h('span', { class: 'tag' }, `CAM ${i + 1} · ${c.name}`), h('span', { class: 'rec', 'aria-hidden': 'true' })) }; });
+    TV.statusEl = h('section', { class: 'status', 'aria-label': 'Ship status' });
+    TV.layer = h('div', { class: 'tvgrid' }, TV.cams[0].el, TV.statusEl, TV.cams[1].el, TV.cams[2].el, TV.cams[3].el, TV.cams[4].el);
+  }
+  const sab = pub.sab;
+  TV.statusEl.replaceChildren(
+    h('h3', null, 'Cyber Defenders'),
+    h('div', { style: 'display:grid;gap:1vh' }, h('p', { class: 'label' }, 'Security Status'), h('p', { class: 'stat-big' }, `${pub.pct}%`), h('div', { class: 'bar' }, h('i', { style: `width:${pub.pct}%` }))),
+    sab ? h('p', { class: sab.kind === 'firewall' ? 'hack' : 'warn', style: 'font-weight:900' }, sab.kind === 'firewall' ? h('span', null, 'FIREWALL BREACH ', until(sab.endsAt)) : 'LIGHTS OUT on the ship') : h('p', { class: 'ok', style: 'font-weight:800' }, 'All systems normal'),
+    h('p', { class: 'muted' }, `${pub.players.filter(p => !p.out).length} crew aboard · 1 Hacker`));
+  startCams();
+  return TV.layer;
+}
+function startCams() { if (!TV.raf) TV.raf = requestAnimationFrame(drawCams); }
+function stopCams() { if (TV.raf) cancelAnimationFrame(TV.raf); TV.raf = 0; }
+function drawCams(t) {
+  TV.raf = requestAnimationFrame(drawCams);
+  const pub = App.pub;
+  if (!pub || !TV.layer || !TV.layer.isConnected) { stopCams(); return; }
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const crew = othersNow(pub, 'tv');
+  const dark = pub.sab && pub.sab.kind === 'lights';
+  for (const { c, cv } of TV.cams) {
+    const W = cv.clientWidth, H = cv.clientHeight;
+    if (!W || !H) continue;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    const g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const scale = Math.max(W / c.w, H / c.h) * 0.92; // fill the frame, like a real camera
+    const X = x => (x - c.x) * scale + W / 2, Y = y => (y - c.y) * scale + H / 2;
+    g.fillStyle = '#04060b'; g.fillRect(0, 0, W, H);
+    g.drawImage(MAPIMG, (c.x - W / 2 / scale) * MAP_PX, (c.y - H / 2 / scale) * MAP_PX, W / scale * MAP_PX, H / scale * MAP_PX, 0, 0, W, H);
+    const items = [];
+    for (const b of pub.bodies) items.push({ y: b.y, draw: () => drawBody(g, X(b.x), Y(b.y), scale * 1.15, colorOf(playerBy(b.pid))) });
+    for (const o of crew) items.push({ y: o.y, draw: () => { drawCrew(g, X(o.x), Y(o.y), scale * 1.15, colorOf(o.p), o.d, { bob: o.m ? Math.sin(t / 90) * scale * 0.04 : 0 }); nameTag(g, X(o.x), Y(o.y) - scale * 1.2, o.p.name, Math.max(11, scale * 0.42)); } });
+    items.sort((a, b) => a.y - b.y).forEach(i => i.draw());
+    if (dark) { g.fillStyle = 'rgba(0,0,0,.72)'; g.fillRect(0, 0, W, H); }
+    g.fillStyle = 'rgba(160,255,200,.04)'; for (let y = 0; y < H; y += 4) g.fillRect(0, y, W, 1);
+  }
+}
+function tvTakeover(pub) {
+  if (pub.phase === 'reveal') return h('div', { class: 'takeover', role: 'status' }, h('div', { class: 'inner' },
+    h('p', { class: 'big', style: 'font-style:italic' }, 'Shhhhh!'),
+    h('p', { class: 'sub' }, 'Roles assigned. Check your phone privately.'),
+    h('p', { class: 'note' }, 'There is 1 Hacker among us.'),
+    h('p', { class: 'sub' }, until(pub.revealEnds))));
+  if (pub.phase === 'meeting' && pub.meeting) return meetingPanel(pub, null, true);
+  if (pub.phase === 'result' && pub.result) return resultPanel(pub, true);
+  if (pub.phase === 'end' && pub.end) {
+    const def = pub.end.winner === 'defenders';
+    const winners = pub.players.filter(p => (p.role === 'hacker') !== def);
+    return h('div', { class: 'takeover' + (def ? '' : ' alarm'), role: 'status' }, h('div', { class: 'inner' },
+      h('p', { class: 'big ' + (def ? 'def' : 'hack') }, def ? 'Defenders win' : 'Hacker wins'),
+      h('p', { class: 'sub' }, endLine(pub)),
+      lineup(winners),
+      h('p', { class: 'note' }, pub.players.map(p => `${p.name}: ${p.role === 'hacker' ? 'Hacker' : 'Defender'}`).join(' · ')),
+      h('div', { class: 'row', style: 'max-width:900px;width:100%' },
+        h('button', { class: 'btn primary', 'data-k': 'again', onclick: () => Host.start() }, 'Play again (same crew)'),
+        h('button', { class: 'btn', 'data-k': 'lobby', onclick: () => Host.backToLobby() }, 'Back to lobby'))));
+  }
+  return null;
+}
+
+/* =========================================================================
+   Mini-games (Among Us-style tasks, 5-20 seconds each)
+   ========================================================================= */
+let game = null;
+function closeGame() {
+  if (!game) return;
+  game.cleanup && game.cleanup();
+  game.el.remove();
+  game = null;
+  Local.busy = false;
+}
+function openGame(type, onWin, opt = {}) {
+  closeGame();
+  const meta = type === 'scan' ? { name: 'Stop the breach', hint: 'Hold the scanner' } : type === 'reboot' ? { name: 'Restore the system', hint: 'Tap 1 to 4' } : TASKS[type];
+  const area = h('div', { class: 'game-area' });
+  const status = h('p', { class: 'muted', 'aria-live': 'polite' }, meta.hint);
+  const el = h('div', { class: 'sheet-wrap', onkeydown: e => { if (e.key === 'Escape') closeGame(); } },
+    h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'game-title' },
+      h('div', { class: 'sheet-head' }, h('h2', { id: 'game-title' }, meta.name), h('button', { class: 'btn small ghost', 'data-k': 'game-close', onclick: closeGame }, 'Close')),
+      status, area));
+  document.body.append(el);
+  Local.busy = true;
+  game = { el, type, fix: !!opt.fix };
+  const win = () => { status.textContent = 'Done!'; say(`${meta.name} complete.`); setTimeout(() => { if (game && game.el === el) { closeGame(); onWin(); } }, 450); };
+  game.cleanup = (GAMES[type] || GAMES.reboot)({ area, status, win });
+  const first = el.querySelector('.game-area button, .game-area input');
+  (first || el.querySelector('button')).focus({ preventScroll: true });
+}
+const SYMBOLS = [
+  { c: '#ff4d61', s: '▲', n: 'red triangle' }, { c: '#3d7bff', s: '●', n: 'blue circle' },
+  { c: '#ffd23c', s: '■', n: 'yellow square' }, { c: '#ff6fd8', s: '◆', n: 'pink diamond' },
+];
+function holdGame({ text, btn: label, need }) {
+  return ({ area, status, win }) => {
+    const bar = h('i');
+    const p = h('div', { class: 'progress-big', role: 'progressbar', 'aria-label': 'Progress', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0' }, bar);
+    const btn = h('button', { class: 'btn primary' }, label);
+    area.append(h('p', null, text), h('div', { style: 'margin:14px 0' }, p), btn);
+    let acc = 0, raf = 0, holding = false, last = 0, done = false;
+    const loop = t => {
+      if (holding) acc += t - last;
+      last = t;
+      const v = clamp(acc / need, 0, 1);
+      bar.style.width = `${v * 100}%`; p.setAttribute('aria-valuenow', String(Math.round(v * 100)));
+      if (v >= 1 && !done) { done = true; win(); return; }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(t => { last = t; loop(t); });
+    const on = e => { e.preventDefault(); holding = true; };
+    const off = () => { holding = false; };
+    btn.addEventListener('pointerdown', on); btn.addEventListener('pointerup', off); btn.addEventListener('pointerleave', off); btn.addEventListener('pointercancel', off);
+    btn.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) on(e); });
+    btn.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') off(); });
+    btn.addEventListener('contextmenu', e => e.preventDefault());
+    status.textContent = 'Press and hold until it reaches 100%.';
+    return () => cancelAnimationFrame(raf);
+  };
+}
+const GAMES = {
+  wires({ area, status, win }) {
+    const grid = h('div', { class: 'wires' });
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('aria-hidden', 'true');
+    const left = shuffle(SYMBOLS), right = shuffle(SYMBOLS);
+    let sel = null, done = 0;
+    const lines = [];
+    const draw = () => {
+      svg.replaceChildren();
+      const box = grid.getBoundingClientRect();
+      for (const [a, b, c] of lines) {
+        const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+        const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        l.setAttribute('x1', ra.right - box.left); l.setAttribute('y1', ra.top + ra.height / 2 - box.top);
+        l.setAttribute('x2', rb.left - box.left); l.setAttribute('y2', rb.top + rb.height / 2 - box.top);
+        l.setAttribute('stroke', c); l.setAttribute('stroke-width', '10'); l.setAttribute('stroke-linecap', 'round');
+        svg.append(l);
+      }
+    };
+    const lb = left.map(x => h('button', { class: 'node', style: `color:${x.c}`, 'aria-label': `Left ${x.n}`, onclick: e => {
+      if (e.currentTarget.classList.contains('done')) return;
+      lb.forEach(b => b.classList.remove('sel')); sel = x; e.currentTarget.classList.add('sel');
+      status.textContent = `Now tap the matching ${x.n} on the right.`;
+    } }, h('span', null, x.s)));
+    const rb = right.map(x => h('button', { class: 'node', style: `color:${x.c}`, 'aria-label': `Right ${x.n}`, onclick: e => {
+      const btn = e.currentTarget;
+      if (btn.classList.contains('done')) return;
+      if (!sel) { status.textContent = 'Tap a wire on the left first.'; return; }
+      if (sel !== x) { btn.classList.add('shake'); setTimeout(() => btn.classList.remove('shake'), 300); status.textContent = 'That one does not match.'; return; }
+      const a = lb[left.indexOf(x)];
+      a.classList.remove('sel'); a.classList.add('done'); btn.classList.add('done');
+      lines.push([a, btn, x.c]); draw(); sel = null; done++;
+      status.textContent = `${done} of 4 connected.`;
+      if (done === 4) win();
+    } }, h('span', null, x.s)));
+    for (let i = 0; i < 4; i++) grid.append(lb[i], rb[i]);
+    grid.append(svg); area.append(grid);
+    window.addEventListener('resize', draw);
+    return () => window.removeEventListener('resize', draw);
+  },
+  power({ area, status, win }) {
+    const off = new Set(shuffle([0, 1, 2, 3, 4]).slice(0, 3));
+    let leverOn = false, raf = 0, holdStart = 0;
+    const bar = h('i'), lever = h('button', { class: 'btn primary', disabled: true, style: 'margin-top:14px' }, 'Hold the main switch');
+    const lp = h('div', { class: 'progress-big', role: 'progressbar', 'aria-label': 'Main switch', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0', style: 'margin-top:10px' }, bar);
+    const grid = h('div', { class: 'breakers' });
+    for (let i = 0; i < 5; i++) {
+      const b = h('button', { class: 'breaker', 'aria-pressed': off.has(i) ? 'false' : 'true', 'aria-label': `Breaker ${i + 1}` }, h('span', null, `B${i + 1}`), h('i'), h('span', null, off.has(i) ? 'off' : 'on'));
+      b.addEventListener('click', () => {
+        if (!off.has(i)) return;
+        off.delete(i); b.setAttribute('aria-pressed', 'true'); b.lastChild.textContent = 'on';
+        status.textContent = off.size ? `${off.size} still off.` : 'Now press and hold the main switch.';
+        if (!off.size) lever.disabled = false;
+      });
+      grid.append(b);
+    }
+    const NEED = 1800;
+    const step = t => { const p = clamp((t - holdStart) / NEED, 0, 1); bar.style.width = `${p * 100}%`; lp.setAttribute('aria-valuenow', String(Math.round(p * 100))); if (p >= 1) { leverOn = true; win(); return; } raf = requestAnimationFrame(step); };
+    const start = e => { if (lever.disabled || leverOn) return; e.preventDefault(); holdStart = performance.now(); raf = requestAnimationFrame(step); };
+    const stop = () => { if (leverOn) return; cancelAnimationFrame(raf); bar.style.width = '0%'; };
+    lever.addEventListener('pointerdown', start); lever.addEventListener('pointerup', stop); lever.addEventListener('pointerleave', stop); lever.addEventListener('pointercancel', stop);
+    lever.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) start(e); });
+    lever.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') stop(); });
+    lever.addEventListener('contextmenu', e => e.preventDefault());
+    area.append(grid, lever, lp);
+    status.textContent = 'Switch on the 3 breakers that are off.';
+    return () => cancelAnimationFrame(raf);
+  },
+  clean({ area, status, win }) {
+    const box = h('div', { class: 'clean' });
+    area.append(box);
+    const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const N = 6;
+    let left = N, raf = 0;
+    const bugs = [];
+    for (let i = 0; i < N; i++) {
+      const b = h('button', { class: 'bug', 'aria-label': `Malware ${i + 1}` }, '✕');
+      const o = { el: b, x: Math.random(), y: Math.random(), vx: (Math.random() - 0.5) * 0.004, vy: (Math.random() - 0.5) * 0.004, alive: true };
+      b.addEventListener('click', () => { if (!o.alive) return; o.alive = false; b.remove(); left--; status.textContent = left ? `${left} left.` : 'System clean.'; if (!left) win(); });
+      bugs.push(o); box.append(b);
+    }
+    const loop = () => {
+      const W = box.clientWidth - 56, H = box.clientHeight - 56;
+      for (const o of bugs) {
+        if (!o.alive) continue;
+        if (!still) { o.x += o.vx; o.y += o.vy; if (o.x < 0 || o.x > 1) { o.vx *= -1; o.x = clamp(o.x, 0, 1); } if (o.y < 0 || o.y > 1) { o.vy *= -1; o.y = clamp(o.y, 0, 1); } }
+        o.el.style.transform = `translate(${o.x * W}px, ${o.y * H}px)`;
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    loop();
+    status.textContent = `Tap all ${N} pieces of malware.`;
+    return () => cancelAnimationFrame(raf);
+  },
+  signal({ area, status, win }) {
+    const canvas = h('canvas', { class: 'wave', width: '600', height: '220', 'aria-hidden': 'true' });
+    const target = 2 + Math.floor(Math.random() * 5) + Math.random() * 0.5;
+    const slider = h('input', { type: 'range', min: '1', max: '8', step: '0.05', value: String(target > 4.5 ? 1.3 : 7.6), 'aria-label': 'Signal frequency' });
+    const meterEl = h('p', { class: 'muted', 'aria-live': 'polite' });
+    area.append(canvas, slider, meterEl);
+    const g = canvas.getContext('2d');
+    let held = 0, last = performance.now(), raf = 0, phase = 0, done = false;
+    const wave = (f, color, dash) => { g.beginPath(); g.setLineDash(dash ? [10, 8] : []); g.strokeStyle = color; g.lineWidth = 5; for (let x = 0; x <= 600; x += 4) { const y = 110 + Math.sin((x / 600) * Math.PI * 2 * f + phase) * 70; if (x) g.lineTo(x, y); else g.moveTo(x, y); } g.stroke(); };
+    const loop = t => {
+      const dt = t - last; last = t; phase += dt / 400;
+      const f = Number(slider.value), diff = Math.abs(f - target);
+      g.clearRect(0, 0, 600, 220); wave(target, '#54e5ed', true); wave(f, diff < 0.18 ? '#43d16a' : '#ffcf5c', false);
+      if (diff < 0.18) held += dt; else held = 0;
+      meterEl.textContent = diff < 0.18 ? 'Aligned. Hold still…' : `Signal match: ${Math.round(clamp(1 - diff / 6, 0, 1) * 100)}%`;
+      if (held > 1000 && !done) { done = true; win(); return; }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    status.textContent = 'Slide until the waves line up, then hold.';
+    return () => cancelAnimationFrame(raf);
+  },
+  file: holdGame({ text: 'Uploading payroll.xlsx to the server…', btn: 'Hold to transfer', need: 6000 }),
+  scan: holdGame({ text: 'Scan your hand to stop the breach.', btn: 'Hold the scanner', need: 2500 }),
+  verify({ area, status, win }) {
+    const keys = [], pad = h('div', { class: 'keypad' });
+    for (let i = 0; i < 9; i++) { const k = h('button', { class: 'key', 'aria-label': `Key ${i + 1}` }, String(i + 1)); keys.push(k); pad.append(k); }
+    area.append(pad);
+    const rounds = [3, 4, 5];
+    let round = 0, seq = [], pos = 0, showing = false;
+    const timers = [];
+    const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+    const show = () => {
+      showing = true; pos = 0; keys.forEach(k => { k.disabled = true; });
+      status.textContent = `Round ${round + 1} of 3: watch.`;
+      seq.forEach((n, i) => { later(() => keys[n].classList.add('lit'), 500 + i * 600); later(() => keys[n].classList.remove('lit'), 500 + i * 600 + 380); });
+      later(() => { showing = false; keys.forEach(k => { k.disabled = false; }); status.textContent = 'Your turn: repeat it.'; say(`Sequence: ${seq.map(n => n + 1).join(', ')}`); keys[0].focus({ preventScroll: true }); }, 500 + seq.length * 600);
+    };
+    const next = () => { seq = Array.from({ length: rounds[round] }, () => Math.floor(Math.random() * 9)); show(); };
+    keys.forEach((k, i) => k.addEventListener('click', () => {
+      if (showing) return;
+      if (seq[pos] === i) {
+        k.classList.add('ok'); later(() => k.classList.remove('ok'), 160); pos++;
+        if (pos === seq.length) { round++; if (round === rounds.length) { keys.forEach(x => { x.disabled = true; }); win(); } else later(next, 450); }
+      } else { pad.classList.add('shake'); later(() => pad.classList.remove('shake'), 300); status.textContent = 'Wrong key. Watch again.'; later(show, 600); }
+    }));
+    next();
+    return () => timers.forEach(clearTimeout);
+  },
+  reboot({ area, status, win }) {
+    const grid = h('div', { class: 'keypad', style: 'grid-template-columns:repeat(2,1fr)' });
+    let want = 1;
+    for (const n of shuffle([1, 2, 3, 4])) {
+      const b = h('button', { class: 'key', 'aria-label': `Node ${n}` }, String(n));
+      b.addEventListener('click', () => { if (n !== want) { status.textContent = `Tap ${want} next.`; return; } b.classList.add('ok'); b.disabled = true; want++; if (want > 4) win(); });
+      grid.append(b);
+    }
+    area.append(grid);
+    return null;
+  },
+};
+
+/* ---------- sound, screen, hosting ---------- */
+let audio = null;
+function beep(freq, dur, times = 1) {
+  if (!App.ui.sound) return;
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    for (let i = 0; i < times; i++) {
+      const o = audio.createOscillator(), g = audio.createGain(), at = audio.currentTime + i * (dur + 0.08);
+      o.frequency.value = freq; o.type = 'square';
+      g.gain.setValueAtTime(0.06, at); g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+      o.connect(g).connect(audio.destination); o.start(at); o.stop(at + dur);
+    }
+  } catch (e) {}
+}
+async function keepAwake() { try { if (navigator.wakeLock) await navigator.wakeLock.request('screen'); } catch (e) {} }
+function soloHere() { App.name = App.name || 'You'; Host.begin({ solo: true }); }
+
+boot();
+</script>
+</body>
+</html>
